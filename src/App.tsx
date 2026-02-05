@@ -444,7 +444,7 @@ const BLANK_NODES: NodeItem[] = [];
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const nodeRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [showNodeLabels, setShowNodeLabels] = useState(true);
-const [showWater, setShowWater] = useState(true);
+  const [showNodes, setShowNodes] = useState(true);
   const [nodeTooltip, setNodeTooltip] = useState<{ x: number; y: number; text: string } | null>(
     null
   );
@@ -1651,11 +1651,12 @@ const deleteAxis = (axisId: string) => {
 <label className="viewToggle">
   <input
     type="checkbox"
-    checked={showWater}
-    onChange={(e) => setShowWater(e.target.checked)}
+    checked={showNodes}
+    onChange={(e) => setShowNodes(e.target.checked)}
   />
-  <span>Water</span>
+  <span>Nodes</span>
 </label>
+
 
                 </div>
               </div>
@@ -1730,16 +1731,15 @@ const deleteAxis = (axisId: string) => {
 
   <g>
  {/* Ocean background */}
-{showWater && (
-  <rect
-    x="0"
-    y="0"
-    width={w}
-    height={h}
-    fill="url(#oceanGrad)"
-    clipPath="url(#oceanClip)"
-  />
-)}
+<rect
+  x="0"
+  y="0"
+  width={w}
+  height={h}
+  fill="url(#oceanGrad)"
+  clipPath="url(#oceanClip)"
+/>
+
 
 
 
@@ -1845,7 +1845,8 @@ const deleteAxis = (axisId: string) => {
 })()}
 
                       {/* Nodes */}
-                      {axes.map((axis) => {
+                      {showNodes &&
+                      axes.map((axis) => {
                         const axisIndex = axes.findIndex((a) => a.id === axis.id);
                         if (axisIndex === -1) return null;
 
