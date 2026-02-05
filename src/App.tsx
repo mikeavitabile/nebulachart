@@ -499,6 +499,8 @@ const expandAxis = (axisId: string) => {
 
 
 const [leftCollapsed, setLeftCollapsed] = useState(false);
+const [guidebookOpen, setGuidebookOpen] = useState(false);
+
 
 
   // --- Save / Load / Reset ---
@@ -985,11 +987,22 @@ const deleteAxis = (axisId: string) => {
 
   return (
     <div className="appShell">
-       <header className="header">
-        <strong>babyisland.dev</strong>
-        <span className="muted">Workshop Tool v0</span>
+      <header className="header">
+  <strong>babyisland.dev</strong>
+  <span className="muted">Workshop Tool v1</span>
 
-        <div style={{ marginLeft: "auto" }}>
+  <button
+    type="button"
+    className="smallBtn"
+    onClick={() => setGuidebookOpen(true)}
+    style={{ marginLeft: 10 }}
+    title="Open the Baby Island Guidebook"
+  >
+    Guidebook
+  </button>
+
+  <div style={{ marginLeft: "auto" }}>
+
           <button
             className="smallBtn"
             onClick={() => setLeftCollapsed((v) => !v)}
@@ -999,6 +1012,429 @@ const deleteAxis = (axisId: string) => {
           </button>
         </div>
       </header>
+{guidebookOpen && (
+  <div
+    onClick={() => setGuidebookOpen(false)}
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.45)",
+      zIndex: 99999,
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "flex-start",
+      padding: 24,
+      overflowY: "auto",
+    }}
+  >
+    <div
+  onClick={(e) => e.stopPropagation()}
+  style={{
+  width: "min(900px, 100%)",
+  background: "white",
+  borderRadius: 16,
+  padding: 18,
+  marginTop: 20,
+  fontFamily: '"Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+
+  // 👇 these are the important parts
+  fontWeight: 325,
+  lineHeight: 1.6,
+  letterSpacing: "0.1px",
+
+  border: "1px solid rgba(0,0,0,0.08)",
+}}
+
+>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+  <div>
+    <div style={{ fontWeight: 900, fontSize: 18 }}>
+      Guidebook
+    </div>
+    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+      How to use Baby Island!
+    </div>
+  </div>
+
+  <button className="smallBtn" onClick={() => setGuidebookOpen(false)}>
+    Close
+  </button>
+</div>
+
+<hr style={{ margin: "14px 0", border: 0, borderTop: "1px solid rgba(0,0,0,0.08)" }} />
+
+<div style={{ display: "flex", gap: 18, alignItems: "flex-start", flexWrap: "wrap" }}>
+  {/* Left: Table of contents */}
+  <div style={{ flex: "0 0 240px" }}>
+    <div className="muted" style={{ fontSize: 12, fontWeight: 800, marginBottom: 8 }}>
+      Contents
+    </div>
+
+    <div style={{ display: "grid", gap: 6, fontSize: 14 }}>
+      <a href="#gb-1" style={{ textDecoration: "none" }}>1. Philosophy</a>
+      <a href="#gb-2" style={{ textDecoration: "none" }}>2. Canonical structure</a>
+      <a href="#gb-3" style={{ textDecoration: "none" }}>3. Rules</a>
+      <a href="#gb-4" style={{ textDecoration: "none" }}>4. Law of simplicity</a>
+      <a href="#gb-5" style={{ textDecoration: "none" }}>5. No child locks</a>
+      <a href="#gb-6" style={{ textDecoration: "none" }}>6. Data model</a>
+    </div>
+
+  </div>
+
+  {/* Right: Content */}
+ <div
+  style={{
+    flex: "1 1 540px",
+    minWidth: 280,
+  }}
+>
+  <style>
+    {`
+      /* Force guidebook typography to be lighter + scan-friendly */
+      .guidebookContent {
+        font-family: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        font-weight: 325;
+        line-height: 1.65;
+        letter-spacing: 0.1px;
+        color: #1f2d3d;
+      }
+
+      .guidebookContent p,
+      .guidebookContent li {
+        font-weight: 325;
+      }
+
+      .guidebookContent h2 {
+        font-weight: 750;
+        letter-spacing: -0.2px;
+        margin: 6px 0 8px;
+      }
+
+      .guidebookContent h3 {
+        font-weight: 650;
+        letter-spacing: -0.1px;
+        margin: 14px 0 6px;
+      }
+
+      .guidebookContent h4 {
+        font-weight: 650;
+        margin: 10px 0 6px;
+      }
+    `}
+  </style>
+
+  <div className="guidebookContent">
+    {/* KEEP ALL YOUR EXISTING <section> CONTENT EXACTLY AS-IS BELOW THIS LINE */}
+
+    <section id="gb-1" style={{ scrollMarginTop: 80 }}>
+      <h2 style={{ margin: "6px 0 8px" }}>1. Philosophy</h2>
+
+      <p>
+        Baby Island is a visual strategy framework built on the idea that roadmaps should convey direction,
+        maturity, and purpose without pretending to know the future with fake precision.
+      </p>
+      <p>
+        It replaces timelines, swimlanes, and bloated roadmap decks with a radial, topographic metaphor that
+        reflects how a product or organization grows capabilities over time.
+      </p>
+      <p>It is composed of four core elements, each serving a distinct purpose:</p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>1.1 North Star Statements (The &quot;Why&quot;)</h3>
+      <p>
+        The outer perimeter contains bold, qualitative statements of long-term excellence. These capture the
+        aspirational outcomes a team or organization is driving toward. North Stars are intentionally durable —
+        they should remain true across years, leadership changes, and market shifts.
+      </p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>1.2 Strategic Axes (The &quot;How&quot;)</h3>
+      <p>
+        Radiating from the center, the axes represent the major pillars, capability ladders, or strategic dimensions
+        required to achieve the North Stars. Each axis defines a path of progression toward a specific outer-rim
+        aspiration, creating clear conceptual lanes for investment.
+      </p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>1.3 Concentric Rings (The &quot;When / Maturity&quot;)</h3>
+      <p>
+        The rings represent horizons or maturity stages. They convey how capabilities evolve over time — from
+        foundational to advanced. Rings do not map to precise dates; instead, they reflect readiness, sophistication,
+        or impact. They show when a capability meaningfully contributes to the North Star, not when it ships.
+      </p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>1.4 Nodes on Axes (The &quot;What&quot;)</h3>
+      <p>
+        Placed along each axis are nodes — the concrete features, initiatives, capabilities, or deliverables. Their
+        placement shows:
+      </p>
+      <ul>
+        <li>Which strategic pillar they ladder up to (axis)</li>
+        <li>What level of maturity they belong in (ring)</li>
+        <li>How they relate to other items on the same axis (sequence)</li>
+      </ul>
+      <p>
+        Nodes are the actionable components of the strategy: the tangible investments that bring the future vision
+        into reality.
+      </p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>1.5 The Baby (The &quot;Where We Are Today&quot;)</h3>
+      <p>
+        At the center is a simple icon — the Baby. It is not the focal point of the framework; it is a symbol of the
+        present state. It represents the idea that all strategies begin in infancy relative to the future goals defined
+        on the perimeter. It marks the starting point from which growth radiates outward.
+      </p>
+    </section>
+
+    <hr style={{ margin: "18px 0", border: 0, borderTop: "1px solid rgba(0,0,0,0.08)" }} />
+
+    <section id="gb-2" style={{ scrollMarginTop: 80 }}>
+      <h2 style={{ margin: "6px 0 8px" }}>2. Canonical Structure</h2>
+
+      <h3 style={{ margin: "14px 0 6px" }}>Outer Rim: North Star Statements (The &quot;Why&quot;)</h3>
+      <ul>
+        <li>Bold, qualitative aspirational statements on the perimeter.</li>
+        <li>Provide directional pull for every axis.</li>
+        <li>Represent durable definitions of long-term excellence.</li>
+        <li>Examples: &quot;Frictionless Discovery&quot;, &quot;Ultra-Reliable Playback&quot;.</li>
+      </ul>
+
+      <h3 style={{ margin: "14px 0 6px" }}>Axes: Strategic Pillars / Capability Ladders (The &quot;How&quot;)</h3>
+      <ul>
+        <li>Typically 4–8 axes radiating outward.</li>
+        <li>Each axis represents a major strategic dimension aligned to a North Star.</li>
+        <li>Axes form the scaffolding of the strategy.</li>
+        <li>Remain consistent over long periods.</li>
+      </ul>
+
+      <h3 style={{ margin: "14px 0 6px" }}>Rings: Time Horizons / Maturity Stages (The &quot;When / Maturity&quot;)</h3>
+      <ul>
+        <li>Usually 3–4 concentric rings.</li>
+        <li>Represent maturity or horizons, not precise dates.</li>
+        <li>Inner rings: foundations.</li>
+        <li>Middle rings: expansions or integrations.</li>
+        <li>Outer rings: advanced capabilities or long-bet areas.</li>
+        <li>Convey when a capability becomes meaningful.</li>
+      </ul>
+
+      <h3 style={{ margin: "14px 0 6px" }}>Nodes: Capabilities / Initiatives (The &quot;What&quot;)</h3>
+      <ul>
+        <li>Placed along axes based on strategic pillar and maturity.</li>
+        <li>Represent concrete work: features, capabilities, deliverables.</li>
+        <li>Named simply and conceptually (e.g., &quot;Creator Tools&quot;, &quot;Identity Backbone&quot;).</li>
+        <li>Sequence determines ordering when multiple nodes share an axis + ring.</li>
+      </ul>
+
+      <h3 style={{ margin: "14px 0 6px" }}>Center: The Baby (The &quot;Where We Are Today&quot;)</h3>
+      <ul>
+        <li>A symbolic icon representing the present state.</li>
+        <li>Visual anchor reminding that strategy grows outward from today’s starting point.</li>
+        <li>Not a focal element — a contextual one.</li>
+      </ul>
+
+      <h3 style={{ margin: "14px 0 6px" }}>Contours: Strategic Density &amp; Negative Space</h3>
+      <ul>
+        <li>Dense areas form the &quot;island mass&quot; of investment.</li>
+        <li>Sparse areas reveal capability gaps or deprioritized pillars.</li>
+        <li>The overall shape is the strategic signature people remember.</li>
+      </ul>
+    </section>
+
+    <hr style={{ margin: "18px 0", border: 0, borderTop: "1px solid rgba(0,0,0,0.08)" }} />
+
+    <section id="gb-3" style={{ scrollMarginTop: 80 }}>
+      <h2 style={{ margin: "6px 0 8px" }}>3. Rules</h2>
+      <ol>
+        <li>Avoid dates. Rings are maturity, not time.</li>
+        <li>No features without purpose. Every node must ladder to a North Star.</li>
+        <li>Axes change rarely. If you change them often, you don’t have a strategy.</li>
+        <li>Clarity &gt; precision. Baby Island is about direction, not scheduling.</li>
+        <li>Negative space matters. Gaps are as important as planned work.</li>
+      </ol>
+    </section>
+
+    <hr style={{ margin: "18px 0", border: 0, borderTop: "1px solid rgba(0,0,0,0.08)" }} />
+
+    <section id="gb-4" style={{ scrollMarginTop: 80 }}>
+      <h2 style={{ margin: "6px 0 8px" }}>4. The Law of Simplicity (&quot;&lt; = &gt;&quot;)</h2>
+
+      <p>
+        Baby Island is built on a communication philosophy: say the hard thing in the simplest way possible. This
+        principle anchors the entire framework.
+      </p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>4.1 Essence</h3>
+      <p>
+        A roadmap is only valuable if it is readable, interpretable, and memorable. Complexity destroys meaning.
+        Baby Island forces the discipline of focus:
+      </p>
+      <ul>
+        <li>If it can’t fit on one slide, it’s too much.</li>
+        <li>The map reveals strategy through shape, not detail.</li>
+        <li>Brevity is a feature, not a limitation.</li>
+      </ul>
+
+      <h3 style={{ margin: "14px 0 6px" }}>4.2 The Artist’s Constraint</h3>
+      <p>
+        <em>“An artist says a hard thing in a simple way.” — Charles Bukowski</em>
+      </p>
+      <p>
+        Simplicity is not dumbing down. It’s mastery. The more complex the strategy, the more it demands
+        compression into a clean, legible format.
+      </p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>4.3 Practical Implications</h3>
+      <ul>
+        <li>Encourage short labels and conceptual names.</li>
+        <li>Favor a small number of axes and rings.</li>
+        <li>Limit the density of nodes through guidance (not restriction).</li>
+        <li>Let negative space communicate priorities.</li>
+      </ul>
+
+      <p>Baby Island works because it respects human cognition and rewards clarity.</p>
+    </section>
+
+    <hr style={{ margin: "18px 0", border: 0, borderTop: "1px solid rgba(0,0,0,0.08)" }} />
+
+    <section id="gb-5" style={{ scrollMarginTop: 80 }}>
+      <h2 style={{ margin: "6px 0 8px" }}>5. Tools for Adults: The No Child Locks Principle</h2>
+
+      <p>
+        Baby Island tools must respect the intelligence and autonomy of the people using them. Inspired by the No
+        Child Locks philosophy, the Baby Island editor embraces guidance—not restriction.
+      </p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>5.1 Adults, Not Toddlers</h3>
+      <p>
+        The users of this tool are strategists, operators, designers, and leaders. They deserve flexibility, not
+        infantilizing limitations.
+      </p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>5.2 Guardrails, Not Child Locks</h3>
+      <ul>
+        <li>Guardrails prevent breaking the metaphor (e.g., unreadable layouts).</li>
+        <li>Child locks prevent capability out of fear (e.g., hard limits on nodes).</li>
+      </ul>
+      <p>Baby Island only uses guardrails. Never child locks.</p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>5.3 Nudge, Don’t Prevent</h3>
+      <p>The tool will:</p>
+      <ul>
+        <li>Warn when an axis is overpopulated.</li>
+        <li>Suggest clearer naming.</li>
+        <li>Hint at reducing clutter.</li>
+      </ul>
+      <p>
+        But it will never block a user from choosing complexity. The strategist is in control—not the tool.
+      </p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>5.4 Flexibility Over Fear</h3>
+      <p>The tool supports:</p>
+      <ul>
+        <li>Renaming axes</li>
+        <li>Reconfiguring rings</li>
+        <li>Adding advanced metadata</li>
+        <li>Switching modes (Roadmap, OKR, Capability)</li>
+        <li>Overriding defaults</li>
+      </ul>
+      <p>
+        This honors the idea that restrictions based on today’s fears become tomorrow’s obstacles.
+      </p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>5.5 Transparency and Shared Reality</h3>
+      <p>The purpose of Baby Island is alignment, not enforcement. Its canvas is a way to expose:</p>
+      <ul>
+        <li>Gaps</li>
+        <li>Imbalances</li>
+        <li>Strategic weight</li>
+        <li>Investment patterns</li>
+      </ul>
+      <p>It is a tool of clarity, not compliance.</p>
+
+    
+    </section>
+
+    <hr style={{ margin: "18px 0", border: 0, borderTop: "1px solid rgba(0,0,0,0.08)" }} />
+
+    <section id="gb-6" style={{ scrollMarginTop: 80 }}>
+      <h2 style={{ margin: "6px 0 8px" }}>6. Data Model</h2>
+
+      <p>
+        To make Baby Island usable in a web app (instead of manual slide work), we treat the chart as data, not
+        drawing.
+      </p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>6.1 Core Entities</h3>
+
+      <h4 style={{ margin: "10px 0 6px" }}>Axis</h4>
+      <ul>
+        <li><code>axis_id</code> (string)</li>
+        <li><code>label</code> (e.g., &quot;Discovery&quot;, &quot;Reliability&quot;)</li>
+        <li><code>north_star</code> (outer-rim statement for that axis)</li>
+        <li><code>order_index</code> (position around the circle, e.g., 0–7)</li>
+      </ul>
+
+      <h4 style={{ margin: "10px 0 6px" }}>Ring (Horizon / Maturity Stage)</h4>
+      <ul>
+        <li><code>ring_id</code> (string)</li>
+        <li><code>label</code> (e.g., &quot;Foundations&quot;, &quot;Acceleration&quot;, &quot;Moonshots&quot;)</li>
+        <li><code>order_index</code> (0 = innermost, increasing outward)</li>
+      </ul>
+
+      <h4 style={{ margin: "10px 0 6px" }}>Node (Capability / Initiative)</h4>
+      <ul>
+        <li><code>node_id</code> (string)</li>
+        <li><code>label</code> (feature / capability name)</li>
+        <li><code>axis_id</code> (which pillar it ladders up)</li>
+        <li><code>ring_id</code> (which maturity stage)</li>
+        <li>
+          <code>sequence</code> (integer to determine ordering of nodes along the same axis + ring)
+        </li>
+        <li>Optional metadata: <code>status</code>, <code>owner</code>, <code>confidence</code>, <code>notes</code>, etc.</li>
+      </ul>
+
+      <h3 style={{ margin: "14px 0 6px" }}>6.2 Simple Table Representation</h3>
+      <p>For a basic UI, the data can be edited in a grid with columns such as:</p>
+      <ul>
+        <li>
+          Axis / North Star (maps to <code>axis_id</code> + <code>north_star</code>)
+        </li>
+        <li>
+          Feature / Capability Name (maps to <code>label</code>)
+        </li>
+        <li>
+          Horizon (maps to <code>ring_id</code>, e.g., Now / Next / Later)
+        </li>
+        <li>
+          Order (maps to <code>sequence</code>, controls placement when multiple nodes share an axis + ring)
+        </li>
+      </ul>
+      <p>
+        Under the hood, the app resolves these human-friendly values into the structured model above.
+      </p>
+
+      <h3 style={{ margin: "14px 0 6px" }}>6.3 Bidirectional Editing</h3>
+      <ul>
+        <li>
+          Table → Chart: Editing a row updates the underlying node object, which updates the chart position
+          (axis, ring, relative angle derived from sequence).
+        </li>
+        <li>
+          Chart → Table: Dragging a node snaps it to the nearest axis + ring combo and updates that node’s
+          <code> axis_id</code>, <code> ring_id</code>, and potentially <code>sequence</code>.
+        </li>
+      </ul>
+
+      <p className="muted" style={{ marginTop: 12 }}>
+        This separation (data model vs. rendering) is what makes the Baby Island format implementable as a
+        reusable tool instead of a hand-crafted slide.
+      </p>
+    </section>
+  </div>
+</div>
+</div>
+
+    </div>
+  </div>
+)}
 
 
       <div className={`mainSplit ${leftCollapsed ? "mainSplitCollapsed" : ""}`}>
