@@ -776,8 +776,19 @@ setSnapshots(existing);
         // - we set working state to defaults (already)
         // - then createSnapshot in the next frame
         requestAnimationFrame(() => {
-          createSnapshot("Strategy A", true);
-        });
+  const blank: BabyIslandSavedStateV1 = {
+    v: 1,
+    savedAt: Date.now(),
+    title: "Your First Strategy",
+    subtitle: "Workshop Edition",
+    axes: BLANK_AXES,       // or BLANK_AXES if you truly want no axes
+    rings: DEFAULT_RINGS,
+    nodes: [],                // 👈 blank nodes
+  };
+
+  createSnapshot("Your First Island", true, blank);
+});
+
       }
     } catch (e) {
       console.warn("Init failed:", e);
