@@ -1,0 +1,774 @@
+/* =========================
+   Global / Reset
+   ========================= */
+* {
+  box-sizing: border-box;
+}
+
+
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden; /* panes scroll; page does not */
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* =========================
+   App Layout
+   ========================= */
+.appShell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+.muted {
+  color: #777;
+  font-size: 13px;
+}
+
+/* Split panes fill remaining height */
+.mainSplit {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 24px;
+  padding: 24px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Left pane */
+.leftPanel {
+  border-right: 1px solid #ddd;
+  padding: 16px;
+  overflow: auto;
+  min-height: 0;
+}
+
+/* Right pane */
+.rightPanel {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  width: 100%;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* =========================
+   Forms / Inputs
+   ========================= */
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 12px;
+}
+
+input, select {
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 6px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  background: white;
+  font-size: 13px;
+  outline: none;
+}
+
+input:focus, select:focus {
+  border-color: rgba(12, 231, 168, 0.9);
+  box-shadow: 0 0 0 4px rgba(12, 231, 168, 0.12);
+}
+
+/* Axis editor rows */
+.row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.fieldHeader {
+  font-size: 11px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* =========================
+   Right Pane (Canvas / SVG)
+   ========================= */
+.canvasPlaceholder {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.canvasHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.title {
+  font-family: "Outfit", sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+
+.viewBar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 4px 0 12px;
+  flex: 0 0 auto;
+
+  /* Force font for the right-pane filter labels */
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+
+.viewToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #444;
+  white-space: nowrap;
+  user-select: none;
+
+  /* Belt + suspenders */
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* SVG stage fills remaining space */
+.svgStage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.svgStage > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+
+  /* Force font inside SVG (axis labels + node labels) */
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.svgStage text {
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* =========================
+   Buttons
+   ========================= */
+.primaryBtn {
+  width: 100%;
+  border: 1px solid #dcdcdc;
+  background: #f7f7f7;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primaryBtn:hover {
+  background: #efefef;
+}
+
+.smallBtn {
+  background: #111;
+  color: white;
+  border: 0;
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.smallBtn:hover {
+  opacity: 0.9;
+}
+
+.dangerBtn {
+  border: 1px solid #f0caca;
+  background: #fff;
+  color: #b42318;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dangerBtn:hover {
+  background: #ffecec;
+}
+
+/* =========================
+   Nodes
+   ========================= */
+.nodeGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+/* Axis group container */
+.nodeAxisGroup {
+  border: 1px solid #e6e6e6;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.nodeAxisHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.nodeAxisTitle {
+  font-weight: 900;
+  font-size: 14px;
+  color: #222;
+}
+
+/* Ring group separation */
+.nodeRingGroup {
+  border-top: 1px dashed #e2e2e2;
+  padding-top: 10px;
+  margin-top: 10px;
+}
+
+.nodeRingHeader {
+  font-size: 11px;
+  font-weight: 900;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.nodeList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+/* Node row */
+.nodeRow {
+  border: 1px solid #e6e6e6;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+}
+
+.nodeRowSelected {
+  outline: 2px solid rgba(12, 231, 168, 0.8);
+  box-shadow: 0 0 0 4px rgba(12, 231, 168, 0.15);
+}
+
+/* Node label input area */
+.nodeMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+/* Controls: aligned, compact */
+.nodeControls {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end; /* bottom-align to same baseline */
+}
+
+/* Ring + Order blocks */
+.nodeControl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Labels (NODE / RING / ORDER) */
+.nodeLabel {
+  font-size: 10px;
+  font-weight: 800;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Standardize control heights so alignment works */
+.nodeControls select,
+.nodeControls input {
+  height: 38px;
+}
+
+/* Order controls */
+.orderRow {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.orderBtn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.orderBtn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.orderBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.orderIndex {
+  min-width: 22px;
+  text-align: center;
+  font-size: 12px;
+  color: #444;
+  line-height: 1;
+}
+
+/* Make Delete match control height */
+.nodeControls .dangerBtn {
+  height: 38px;
+  align-self: flex-end;
+}
+
+/* =========================
+   Validation / Warnings
+   ========================= */
+.axisWarning {
+  margin: 8px 0 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 0, 0, 0.25);
+  background: rgba(255, 0, 0, 0.06);
+  border-radius: 12px;
+  font-size: 12px;
+  color: #6b1a1a;
+}
+
+.axisWarningTitle {
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+
+.axisWarningList {
+  margin: 0;
+  padding-left: 16px;
+}
+
+/* =========================
+   Order control height parity
+   ========================= */
+
+/* Force Order control to match Ring/Delete height */
+.nodeControls .orderRow {
+  height: 38px;                /* same as select + delete */
+  display: flex;
+  align-items: center;         /* vertical centering */
+  justify-content: center;
+  gap: 8px;
+  padding: 0 6px;              /* gives it button-like mass */
+}
+
+/* Make arrow buttons feel like real controls, not icons */
+.nodeControls .orderBtn {
+  width: 22px;                 /* up from 28 */
+  height: 38px;                /* up from 28 */
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+/* Center the index visually between arrows */
+.nodeControls .orderIndex {
+  min-width: 24px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* =========================
+   Fix label alignment: kill select/input margin-top inside node controls
+   ========================= */
+
+/* Global form rule adds margin-top:6px; that breaks alignment for Order (no margin).
+   Remove it only inside node rows and let gap handle spacing. */
+.nodeRow .nodeControl input,
+.nodeRow .nodeControl select {
+  margin-top: 0 !important;
+}
+
+/* Also ensure the Order control doesn't get any accidental top offset */
+.nodeRow .orderRow {
+  margin-top: 0 !important;
+}
+
+/* =========================
+   Collapsed left panel mode
+   ========================= */
+.mainSplitCollapsed {
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 12px;
+}
+
+.mainSplitCollapsed .leftPanel {
+  display: none;
+}
+.nodeAxisTitleInput {
+  width: 100%;
+  font-weight: 800;
+  font-size: 14px;
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.nodeAxisNorthStarWrap {
+  margin-top: 8px;
+}
+
+.nodeAxisNorthStarInput {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 10px;
+  padding: 8px 10px;
+  line-height: 1.25;
+}
+.nodeAxisHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.axisHeaderMain {
+  flex: 1;
+  min-width: 0; /* important so inputs can shrink instead of pushing buttons */
+}
+
+.axisHeaderControls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.axisMoveBtns {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.axisHeaderControls button {
+  white-space: nowrap;
+}
+
+.axisMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.axisExpandBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: white;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  line-height: 1;
+}
+.axisHeaderControls .smallBtn,
+.axisHeaderControls .dangerBtn {
+  width: 140px; /* tweak */
+}
+/* --- Axes & Nodes header layout overrides (strong + scoped) --- */
+.nodeAxisHeader {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+}
+
+.nodeAxisHeader .axisHeaderMain {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+.nodeAxisHeader .axisHeaderControls {
+  flex: 0 0 160px !important;  /* right rail width */
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+}
+
+/* Up/down row */
+.nodeAxisHeader .axisMoveBtns {
+  display: flex !important;
+  gap: 8px !important;
+  justify-content: flex-end !important;
+}
+
+/* Make ONLY the move buttons small squares (override .smallBtn pill styles) */
+.nodeAxisHeader .axisMoveBtns .smallBtn {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 40px !important;
+  padding: 0 !important;
+  border-radius: 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Make the stacked buttons fill the right rail neatly */
+.nodeAxisHeader .axisHeaderControls > .smallBtn,
+.nodeAxisHeader .axisHeaderControls > .dangerBtn {
+  width: 100% !important;
+}
+
+/* Inputs should actually take space */
+.nodeAxisHeader .nodeAxisTitleInput {
+  width: 100% !important;
+  display: block !important;
+}
+
+.nodeAxisHeader .nodeAxisNorthStarInput {
+  width: 100% !important;
+  display: block !important;
+  min-height: 56px;
+}
+
+/* ===== Axes & Nodes: header layout (final override) ===== */
+.nodeAxisHeader {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+}
+
+.nodeAxisHeader .axisHeaderMain {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+/* Right rail */
+.nodeAxisHeader .axisHeaderControls {
+  flex: 0 0 170px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+}
+
+/* Up/down row */
+.nodeAxisHeader .axisMoveBtns {
+  display: flex !important;
+  gap: 8px !important;
+  justify-content: flex-end !important;
+}
+
+/* NEW: axis move buttons (do NOT use .smallBtn styling) */
+.nodeAxisHeader .axisMoveBtn {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 40px !important;
+  padding: 0 !important;
+  border-radius: 12px !important;
+  border: 0 !important;
+  background: #111 !important;
+  color: #fff !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+}
+
+.nodeAxisHeader .axisMoveBtn:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+}
+
+/* Make the stacked buttons fill the rail */
+.nodeAxisHeader .axisHeaderControls > .smallBtn,
+.nodeAxisHeader .axisHeaderControls > .dangerBtn {
+  width: 100% !important;
+}
+
+/* (App.css) Force axis header to be two columns: main + right rail */
+.nodeAxisHeader {
+  display: grid !important;
+  grid-template-columns: 1fr 180px !important;
+  align-items: start !important;
+  gap: 14px !important;
+}
+
+/* Make the left side actually fill */
+.axisHeaderMain {
+  min-width: 0 !important;
+}
+
+/* Make title + textarea behave */
+.nodeAxisTitleInput,
+.nodeAxisNorthStarInput {
+  width: 100% !important;
+  max-width: 100% !important;
+  display: block !important;
+}
+
+/* Right rail stacked */
+.axisHeaderControls {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  align-items: stretch !important;
+}
+
+/* Up/down row */
+.axisMoveBtns {
+  display: flex !important;
+  gap: 8px !important;
+  justify-content: flex-end !important;
+}
+
+/* Ensure Delete + Add node are full-width stack */
+.axisHeaderControls > button {
+  width: 100% !important;
+}
+/* (App.css) tighter right rail */
+.axisHeaderControls {
+  width: 180px !important; /* tweak to taste */
+}
+
+.axisHeaderControls > .smallBtn,
+.axisHeaderControls > .dangerBtn {
+  width: 100% !important;
+}
+
+.axisMoveBtns {
+  justify-content: flex-end !important;
+}
+
+/* (App.css) Compact rail buttons */
+.axisHeaderControls > .smallBtn,
+.axisHeaderControls > .dangerBtn {
+  width: 100% !important;
+  padding: 8px 8px !important;
+  border-radius: 12px !important;
+  font-size: 10px !important;
+  line-height: 1.05 !important;
+}
+
+/* Ensure long labels don't force width; allow wrap if needed */
+.axisHeaderControls > .smallBtn,
+.axisHeaderControls > .dangerBtn {
+  white-space: normal !important;
+}
+
+
+/* (App.css) Axes & Nodes header: narrow right rail */
+.nodeAxisHeader {
+  grid-template-columns: 1fr 96px !important; /* was ~180px; tighten */
+}
+
+/* Keep controls stacked, but confined to the rail */
+.axisHeaderControls {
+  width: 96px !important;
+  max-width: 96px !important;
+  align-items: stretch !important;
+}
+
+/* Arrow pair should fill the rail */
+.axisMoveBtns {
+  width: 100% !important;
+  justify-content: space-between !important;
+}
+/* (App.css) North Star textarea font */
+.nodeAxisNorthStarInput {
+  font-family: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+}
+
+/* (App.css) Axis title should feel primary */
+.nodeAxisTitleInput {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  padding: 10px 12px !important;
+}
