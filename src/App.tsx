@@ -442,6 +442,8 @@ const BLANK_NODES: NodeItem[] = [];
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const babySpinAnimRef = useRef<SVGAnimateTransformElement | null>(null);
+
   // -------------------- Drag state (click + drag) --------------------
 type DragPos = { x: number; y: number };
 
@@ -463,6 +465,7 @@ const didDragRef = useRef(false);
   const [showNowBlob, setShowNowBlob] = useState(true);
   const [showNextBlob, setShowNextBlob] = useState(true);
   const [showLaterBlob, setShowLaterBlob] = useState(true);
+  const [babySpin, setBabySpin] = useState(0);
   const [snapshots, setSnapshots] = useState<BabyIslandSnapshotV1[]>([]);
   const [activeSnapshotId, setActiveSnapshotId] = useState<string | null>(null);
   const [copiedAt, setCopiedAt] = useState<number | null>(null);
@@ -2381,13 +2384,14 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
   onPointerCancel={pointerEndDrag}
 >
 
-  <style>
-    {`
-      text, tspan {
-        font-family: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
-      }
-    `}
-  </style>
+ <style>
+  {`
+    text, tspan {
+      font-family: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+    }
+  `}
+</style>
+
 
 
  <defs>
@@ -2517,15 +2521,43 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
         </clipPath>
       </defs>
 
-      <image
-        href={babyImg}
-        x={cx2 - babyR}
-        y={cy2 - babyR}
-        width={babyR * 2}
-        height={babyR * 2}
-        preserveAspectRatio="xMidYMid slice"
-        clipPath="url(#babyClip)"
-      />
+     <g
+  onClick={(e) => {
+    e.stopPropagation();
+
+    // Restart the spin on every click
+    try {
+      babySpinAnimRef.current?.beginElement();
+    } catch {
+      // ignore
+    }
+  }}
+  style={{ cursor: "pointer" }}
+>
+  <animateTransform
+    ref={babySpinAnimRef}
+    attributeName="transform"
+    type="rotate"
+    from={`0 ${cx2} ${cy2}`}
+    to={`360 ${cx2} ${cy2}`}
+    dur="600ms"
+    repeatCount="1"
+    begin="indefinite"
+  />
+
+  <image
+    href={babyImg}
+    x={cx2 - babyR}
+    y={cy2 - babyR}
+    width={babyR * 2}
+    height={babyR * 2}
+    preserveAspectRatio="xMidYMid slice"
+    clipPath="url(#babyClip)"
+  />
+</g>
+
+
+
     </>
   );
 })()}
