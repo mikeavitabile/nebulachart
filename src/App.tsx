@@ -441,6 +441,25 @@ const BLANK_NODES: NodeItem[] = [];
 
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
+  // Clamp tooltip to the visible stage so it never goes off-screen
+const clampTooltipToStage = (x: number, y: number) => {
+  const el = stageRef.current;
+  if (!el) return { x, y };
+
+  // These match your tooltip box styling below
+  const PAD = 8;
+  const TIP_W = 280; // matches maxWidth: 280
+  const TIP_H = 120; // safe estimate; we’ll adjust with a little margin
+
+  const maxX = Math.max(PAD, el.clientWidth - TIP_W - PAD);
+  const maxY = Math.max(PAD, el.clientHeight - TIP_H - PAD);
+
+  return {
+    x: Math.min(Math.max(x, PAD), maxX),
+    y: Math.min(Math.max(y, PAD), maxY),
+  };
+};
+
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const babySpinAnimRef = useRef<SVGAnimateTransformElement | null>(null);
 
@@ -2485,22 +2504,29 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
                               dominantBaseline="middle"
                               fontSize="18"
                               fill="#333"
-                              style={{ cursor: "help", userSelect: "none", fontWeight: 500 }}
+                              style={{ cursor: "pointer", userSelect: "none", fontWeight: 500 }}
                               onMouseEnter={(e) => {
                                 const rect = stageRef.current?.getBoundingClientRect();
                                 if (!rect) return;
-                                setTooltip({
-                                  x: e.clientX - rect.left + 12,
-                                  y: e.clientY - rect.top + 12,
-                                  text: a.northStar,
-                                });
+                               {
+  const rawX = e.clientX - rect.left + 12;
+  const rawY = e.clientY - rect.top + 12;
+  const p = clampTooltipToStage(rawX, rawY);
+  setTooltip({ x: p.x, y: p.y, text: a.northStar });
+}
+
                               }}
                               onMouseMove={(e) => {
                                 const rect = stageRef.current?.getBoundingClientRect();
                                 if (!rect) return;
-                                setTooltip((prev) =>
-                                  prev ? { ...prev, x: e.clientX - rect.left + 12, y: e.clientY - rect.top + 12 } : prev
-                                );
+                                setTooltip((prev) => {
+  if (!prev) return prev;
+  const rawX = e.clientX - rect.left + 12;
+  const rawY = e.clientY - rect.top + 12;
+  const p = clampTooltipToStage(rawX, rawY);
+  return { ...prev, x: p.x, y: p.y };
+});
+
                               }}
                               onMouseLeave={() => setTooltip(null)}
                             >
