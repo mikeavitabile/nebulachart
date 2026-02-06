@@ -442,6 +442,18 @@ const BLANK_NODES: NodeItem[] = [];
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  // -------------------- Drag state (click + drag) --------------------
+type DragPos = { x: number; y: number };
+
+const DRAG_THRESHOLD_PX = 5;
+
+const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+const [dragPos, setDragPos] = useState<DragPos | null>(null);
+
+const activePointerIdRef = useRef<number | null>(null);
+const dragStartClientRef = useRef<{ x: number; y: number } | null>(null);
+const didDragRef = useRef(false);
+
   const nodeRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [showNodeLabels, setShowNodeLabels] = useState(true);
   const [showNodes, setShowNodes] = useState(true);
@@ -1274,7 +1286,7 @@ const deleteAxis = (axisId: string) => {
 
       <h3 style={{ margin: "14px 0 6px" }}>4.2 The Artist’s Constraint</h3>
       <p>
-        <em>“An artist says a hard thing in a simple way.” — Charles Bukowski</em>
+        “An artist says a hard thing in a simple way.” — Charles Bukowski
       </p>
       <p>
         Simplicity is not dumbing down. It’s mastery. The more complex the strategy, the more it demands
@@ -2130,6 +2142,229 @@ const deleteAxis = (axisId: string) => {
               const ringNow = outerR2 * 0.4;
               const ringNext = outerR2 * 0.7;
               const ringLater = outerR2;
+              // -------------------- Drag helpers (inside SVG sizing scope) --------------------
+const ringRadiusByIdBase: Record<string, number> = {
+  now: ringNow,
+  next: ringNext,
+  later: ringLater,
+};
+
+const DRAG_MAX_R = ringLater - 10; // keep inside outer circle
+
+function clientToSvgPoint(clientX: number, clientY: number): { x: number; y: number } {
+  const rect = stageRef.current?.getBoundingClientRect();
+  if (!rect) return { x: cx2, y: cy2 };
+
+  const nx = (clientX - rect.left) / rect.width;  // 0..1
+  const ny = (clientY - rect.top) / rect.height;  // 0..1
+
+  return {
+    x: nx * w,
+    y: ny * h,
+  };
+}
+
+function clampPointToOuterCircle(p: { x: number; y: number }) {
+  const dx = p.x - cx2;
+  const dy = p.y - cy2;
+  const r = Math.hypot(dx, dy);
+  if (r <= DRAG_MAX_R || r === 0) return p;
+
+  const k = DRAG_MAX_R / r;
+  return { x: cx2 + dx * k, y: cy2 + dy * k };
+}
+
+function normalizeAngle(rad: number) {
+  const twoPi = Math.PI * 2;
+  let a = rad % twoPi;
+  if (a < 0) a += twoPi;
+  return a;
+}
+
+function circularAngleDiff(a: number, b: number) {
+  const twoPi = Math.PI * 2;
+  const d = Math.abs(a - b) % twoPi;
+  return d > Math.PI ? twoPi - d : d;
+}
+
+function snapAxisIdFromPoint(x: number, y: number): string {
+  if (axes.length === 0) return "";
+
+  const dropA = normalizeAngle(Math.atan2(y - cy2, x - cx2));
+
+  let bestAxisId = axes[0].id;
+  let best = Number.POSITIVE_INFINITY;
+
+  for (let i = 0; i < axes.length; i++) {
+    const ax = axes[i];
+    const axA = normalizeAngle(-Math.PI / 2 + (i * 2 * Math.PI) / axes.length);
+    const d = circularAngleDiff(dropA, axA);
+    if (d < best) {
+      best = d;
+      bestAxisId = ax.id;
+    }
+  }
+
+  return bestAxisId;
+}
+
+// Mirror your "last committed dot" logic enough to compute uncommittedMidR eligibility
+function computeCommittedMaxRawRForAxis(axisId: string) {
+  const spread = 18;
+
+  const axisNodes = nodes
+    .filter((n) => n.axisId === axisId)
+    .slice()
+    .sort((a, b) => a.sequence - b.sequence || a.label.localeCompare(b.label));
+
+  const nodesByRing = rings.reduce((acc2, r) => {
+    acc2[r.id] = axisNodes.filter((n) => n.ringId === r.id);
+    return acc2;
+  }, {} as Record<string, NodeItem[]>);
+
+  const committed = axisNodes.filter((n) => n.ringId !== "uncommitted");
+  if (committed.length === 0) return 0;
+
+  return Math.max(
+    ...committed.map((cn) => {
+      const base = ringRadiusByIdBase[cn.ringId] ?? ringLater;
+
+      const ringList = nodesByRing[cn.ringId] ?? [];
+      const idx = ringList.findIndex((x) => x.id === cn.id);
+      const k = ringList.length;
+
+      const offset = k <= 1 ? 0 : ((idx / (k - 1)) * 2 - 1) * spread;
+      return base + offset;
+    })
+  );
+}
+
+function snapRingIdFromRadius(axisId: string, dropR: number): string {
+  // Base nearest ring among now/next/later
+  const candidates = [
+    { id: "now", r: ringNow },
+    { id: "next", r: ringNext },
+    { id: "later", r: ringLater },
+  ];
+
+  let best = candidates[0].id;
+  let bestD = Math.abs(dropR - candidates[0].r);
+
+  for (let i = 1; i < candidates.length; i++) {
+    const d = Math.abs(dropR - candidates[i].r);
+    if (d < bestD) {
+      bestD = d;
+      best = candidates[i].id;
+    }
+  }
+
+  // Uncommitted is only a valid snap target if drop is in the OUTER HALF
+  // between committedMaxRawR and ringLater.
+  const committedMaxRawR = computeCommittedMaxRawRForAxis(axisId);
+  const uncommittedMidR = committedMaxRawR === 0 ? ringLater / 2 : (committedMaxRawR + ringLater) / 2;
+
+  const outerHalfStart = uncommittedMidR;
+  if (dropR >= outerHalfStart) return "uncommitted";
+
+  return best;
+}
+
+function pointerMoveDrag(e: React.PointerEvent<SVGSVGElement>) {
+  if (activePointerIdRef.current == null) return;
+  if (e.pointerId !== activePointerIdRef.current) return;
+  if (!draggingNodeId) return;
+
+  // Determine if we’ve crossed the drag threshold (to prevent click spam)
+  const start = dragStartClientRef.current;
+  if (start) {
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (!didDragRef.current && Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
+      didDragRef.current = true;
+    }
+  }
+
+  // Only show "drag follow" once it’s a real drag
+  if (!didDragRef.current) return;
+
+  const p = clientToSvgPoint(e.clientX, e.clientY);
+  const clamped = clampPointToOuterCircle(p);
+  setDragPos(clamped);
+}
+
+function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
+  if (activePointerIdRef.current == null) return;
+  if (e.pointerId !== activePointerIdRef.current) return;
+
+  const nodeId = draggingNodeId;
+  const dragged = didDragRef.current;
+
+  // Reset pointer tracking first (avoid weird re-entrancy)
+  activePointerIdRef.current = null;
+  dragStartClientRef.current = null;
+  setDraggingNodeId(null);
+
+  const finalPos = dragPos;
+  setDragPos(null);
+
+  // If it was just a click (no movement), do your normal click behavior (select + scroll)
+  if (!nodeId) return;
+  if (!dragged) {
+    const n = nodes.find((x) => x.id === nodeId);
+    if (n) {
+      expandAxis(n.axisId);
+      setSelectedNodeId(n.id);
+      const el = nodeRowRefs.current[n.id];
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    didDragRef.current = false;
+    return;
+  }
+
+  // If it was a drag, snap + update node (no click scroll spam)
+  if (!finalPos) {
+    didDragRef.current = false;
+    return;
+  }
+
+  const dx = finalPos.x - cx2;
+  const dy = finalPos.y - cy2;
+  const dropR = Math.min(Math.hypot(dx, dy), DRAG_MAX_R);
+
+  const nextAxisId = snapAxisIdFromPoint(finalPos.x, finalPos.y);
+  const nextRingId = snapRingIdFromRadius(nextAxisId, dropR);
+
+  setNodes((prev) => {
+    const moving = prev.find((x) => x.id === nodeId);
+    if (!moving) return prev;
+
+    const axisChanged = moving.axisId !== nextAxisId;
+    const ringChanged = moving.ringId !== nextRingId;
+
+    // Minimal sequence logic:
+    // - If staying in same axis+ring, keep sequence.
+    // - If moving axis or ring, append to end of that axis+ring (won’t wreck ordering).
+    let nextSeq = moving.sequence;
+    if (axisChanged || ringChanged) {
+      const maxSeq = prev
+        .filter((x) => x.axisId === nextAxisId && x.ringId === nextRingId)
+        .reduce((m, x) => Math.max(m, x.sequence), 0);
+      nextSeq = maxSeq + 1;
+    }
+
+    return prev.map((x) =>
+      x.id === nodeId
+        ? { ...x, axisId: nextAxisId, ringId: nextRingId, sequence: nextSeq }
+        : x
+    );
+  });
+
+  // Selection should follow the dragged node (but don’t scroll)
+  expandAxis(nextAxisId);
+  setSelectedNodeId(nodeId);
+
+  didDragRef.current = false;
+}
 
 
 
@@ -2141,7 +2376,11 @@ const deleteAxis = (axisId: string) => {
   height="100%"
   viewBox={`0 0 ${w} ${h}`}
   preserveAspectRatio="xMidYMid meet"
+  onPointerMove={pointerMoveDrag}
+  onPointerUp={pointerEndDrag}
+  onPointerCancel={pointerEndDrag}
 >
+
   <style>
     {`
       text, tspan {
@@ -2371,20 +2610,45 @@ return axisNodes.map((n) => {
 
 
 
-                          const x = cx2 + r * Math.cos(angle);
-                          const y = cy2 + r * Math.sin(angle);
+                          const baseX = cx2 + r * Math.cos(angle);
+const baseY = cy2 + r * Math.sin(angle);
 
-                          const isSelected = selectedNodeId === n.id;
+const isDraggingThis = draggingNodeId === n.id && dragPos != null && didDragRef.current;
+const x = isDraggingThis ? dragPos!.x : baseX;
+const y = isDraggingThis ? dragPos!.y : baseY;
+
+const isSelected = selectedNodeId === n.id;
+
 
                           return (
                             <g
                               key={n.id}
-                              onClick={() => {
+                              onPointerDown={(e) => {
+  // Don’t let this start text selection / scroll jank
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Select on mouse down (per your requirement)
   expandAxis(n.axisId);
   setSelectedNodeId(n.id);
-  const el = nodeRowRefs.current[n.id];
-  el?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  activePointerIdRef.current = e.pointerId;
+  dragStartClientRef.current = { x: e.clientX, y: e.clientY };
+  didDragRef.current = false;
+
+  setDraggingNodeId(n.id);
+
+  // Initialize dragPos at current node center (so first move is smooth)
+  setDragPos({ x, y });
+
+  // Capture pointer so we keep getting move/up even if leaving the node
+  try {
+    (e.currentTarget as any).setPointerCapture?.(e.pointerId);
+  } catch {
+    // ignore
+  }
 }}
+
 
                               onMouseEnter={(e) => {
                                 if (showNodeLabels) return;
