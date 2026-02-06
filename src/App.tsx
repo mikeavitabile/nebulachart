@@ -264,15 +264,23 @@ function BlobLayer(props: {
   };
 
   const radiiToPath = (radii: number[], tension = 1) => {
-    const pts = radii.map((r, i) => {
-      const angle = -Math.PI / 2 + (i * 2 * Math.PI) / axes.length;
-      return {
-        x: cx2 + r * Math.cos(angle),
-        y: cy2 + r * Math.sin(angle),
-      };
-    });
-    return smoothClosedPathFromPoints(pts, tension);
-  };
+  const axisAngleOffset =
+  axes.length === 4 ? Math.PI / 4 :
+  axes.length === 8 ? Math.PI / 8 :
+  0;
+
+
+  const pts = radii.map((r, i) => {
+    const angle = axisAngleOffset + (-Math.PI / 2 + (i * 2 * Math.PI) / axes.length);
+    return {
+      x: cx2 + r * Math.cos(angle),
+      y: cy2 + r * Math.sin(angle),
+    };
+  });
+
+  return smoothClosedPathFromPoints(pts, tension);
+};
+
 
   // --- Animation state: we animate radii arrays, not 'd' ---
   const animRef = useRef<{
@@ -2160,6 +2168,14 @@ const deleteAxis = (axisId: string) => {
               const ringNow = outerR2 * 0.4;
               const ringNext = outerR2 * 0.7;
               const ringLater = outerR2;
+              // Special-case: when there are 4 or 8 axes, rotate by 45° so labels don’t collide with horizontal axis lines
+const axisAngleOffset =
+  axes.length === 4 ? Math.PI / 4 :
+  axes.length === 8 ? Math.PI / 8 :
+  0;
+
+
+
               // -------------------- Drag helpers (inside SVG sizing scope) --------------------
 const ringRadiusByIdBase: Record<string, number> = {
   now: ringNow,
@@ -2215,7 +2231,7 @@ function snapAxisIdFromPoint(x: number, y: number): string {
 
   for (let i = 0; i < axes.length; i++) {
     const ax = axes[i];
-    const axA = normalizeAngle(-Math.PI / 2 + (i * 2 * Math.PI) / axes.length);
+    const axA = normalizeAngle(axisAngleOffset + (-Math.PI / 2 + (i * 2 * Math.PI) / axes.length));
     const d = circularAngleDiff(dropA, axA);
     if (d < best) {
       best = d;
@@ -2476,7 +2492,8 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
                       {/* Axes + labels */}
                       {axes.map((a, i) => {
                         const n = axes.length;
-                        const angle = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+                        const angle = axisAngleOffset + (-Math.PI / 2 + (i * 2 * Math.PI) / n);
+
 
                         const x2 = cx2 + outerR2 * Math.cos(angle);
                         const y2 = cy2 + outerR2 * Math.sin(angle);
@@ -2590,7 +2607,7 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
                         const axisIndex = axes.findIndex((a) => a.id === axis.id);
                         if (axisIndex === -1) return null;
 
-                        const angle = -Math.PI / 2 + (axisIndex * 2 * Math.PI) / axes.length;
+                        const angle = axisAngleOffset + (-Math.PI / 2 + (axisIndex * 2 * Math.PI) / axes.length);
 
                         const axisNodes = nodes
                           .filter((n) => n.axisId === axis.id)
