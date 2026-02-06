@@ -1542,7 +1542,14 @@ const deleteAxis = (axisId: string) => {
     <button
       type="button"
       className="smallBtn"
-      onClick={() => setNodesOpen((v) => !v)}
+      onClick={() =>
+  setNodesOpen((v) => {
+    const next = !v;
+    if (!next) setExpandedAxisIds({}); // collapsing parent collapses all children
+    return next;
+  })
+}
+
       style={{
         flex: 1,
         display: "flex",
@@ -1678,14 +1685,8 @@ const deleteAxis = (axisId: string) => {
                         .slice()
                         .sort((a, b) => a.sequence - b.sequence || a.label.localeCompare(b.label));
 
-                      const lastNode = axisNodesOrdered[axisNodesOrdered.length - 1];
-                      const lastCommittedRingId =
-                        axisNodesOrdered
-                          .slice()
-                          .reverse()
-                          .find((x) => x.ringId !== "uncommitted")?.ringId ?? "later";
+                      const defaultRingId = "uncommitted";
 
-                      const defaultRingId = lastNode ? lastNode.ringId : lastCommittedRingId;
 
                       const maxSeq = axisNodesOrdered.reduce((m, n) => Math.max(m, n.sequence), 0);
                       const newId = uid();
@@ -1703,12 +1704,7 @@ const deleteAxis = (axisId: string) => {
 
                       setSelectedNodeId(newId);
 
-                      requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                          const el = nodeRowRefs.current[newId];
-                          el?.scrollIntoView({ behavior: "smooth", block: "center" });
-                        });
-                      });
+                    
                     }}
                     title="Add a node to this axis (defaults to the axis’s current ring + ordering)"
                   >
@@ -2640,24 +2636,37 @@ const committedMaxRawR =
         })
       );
 
-// Uncommitted should be equidistant from the edge and the last committed dot on this axis.
-// If no committed dots: equidistant between center and edge.
-const uncommittedMidR =
-  committedNodes.length === 0 ? ringLater / 2 : (committedMaxRawR + ringLater) / 2;
+// Uncommitted: split remaining space (from last committed dot to edge) evenly.
+// If no committed dots: split from center to edge.
+const uncommittedList = nodesByRing["uncommitted"] ?? [];
+const uncommittedCount = uncommittedList.length;
+
+// Start of the "remaining space" on this axis
+const uncommittedStartR = committedNodes.length === 0 ? 0 : committedMaxRawR;
+// End is the outer edge (we’ll still clamp later)
+const uncommittedEndR = ringLater;
 
 return axisNodes.map((n) => {
-  const baseR =
-    n.ringId === "uncommitted"
-      ? uncommittedMidR
-      : (ringRadiusById[n.ringId] ?? ringLater);
-
   const ringList = nodesByRing[n.ringId] ?? [];
   const idx = ringList.findIndex((x) => x.id === n.id);
   const k = ringList.length;
 
-  // spread +/- 18px around the ring so multiple nodes don't overlap
-  const offset =
-    k <= 1 ? 0 : ((idx / (k - 1)) * 2 - 1) * spread; // -spread .. +spread
+  let baseR = ringRadiusById[n.ringId] ?? ringLater;
+  let offset = k <= 1 ? 0 : ((idx / (k - 1)) * 2 - 1) * spread; // default spread behavior
+
+  if (n.ringId === "uncommitted") {
+    // Even spacing in the remaining band:
+    // r = start + (i+1) * (end-start)/(k+1)
+    const i = idx; // idx within uncommitted ring list
+    const gap =
+      uncommittedCount <= 0 ? 0 : (uncommittedEndR - uncommittedStartR) / (uncommittedCount + 1);
+
+    baseR = uncommittedStartR + (i + 1) * gap;
+
+    // No extra spread needed because spacing is already radial and even
+    offset = 0;
+  }
+
 
   const rawR = baseR + offset;
 
