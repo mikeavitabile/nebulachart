@@ -543,6 +543,44 @@ const expandAxis = (axisId: string) => {
 const [leftCollapsed, setLeftCollapsed] = useState(false);
 const [guidebookOpen, setGuidebookOpen] = useState(false);
 
+// --- Quick Start ---
+const [qsAxes, setQsAxes] = useState<number>(4);
+const [qsNodesPerAxis, setQsNodesPerAxis] = useState<number>(3);
+
+const quickStart = () => {
+  // clamp for sanity (no child locks, just guardrails)
+  const axisCount = Math.max(1, Math.min(16, Math.floor(qsAxes || 0)));
+  const nodesPerAxis = Math.max(0, Math.min(20, Math.floor(qsNodesPerAxis || 0)));
+
+  const newAxes: Axis[] = Array.from({ length: axisCount }, (_, i) => ({
+    id: `axis-${uid()}`,
+    label: `Axis ${i + 1}`,
+    northStar: `North Star ${i + 1}`,
+  }));
+
+  const newNodes: NodeItem[] = newAxes.flatMap((ax) =>
+    Array.from({ length: nodesPerAxis }, (_, j) => ({
+      id: uid(),
+      label: `Node ${j + 1}`,
+      axisId: ax.id,
+      ringId: "uncommitted",
+      sequence: j + 1,
+    }))
+  );
+
+  // Apply in one “transaction”
+  setAxes(newAxes);
+  setNodes(newNodes);
+
+  // UX: open the editor and collapse sub-sections by default
+  setNodesOpen(true);
+  setExpandedAxisIds({});
+
+  // Optional: clear selection
+  setSelectedNodeId(null);
+};
+
+
 
 
   // --- Save / Load / Reset ---
@@ -1917,6 +1955,79 @@ const deleteAxis = (axisId: string) => {
 </span>
 
     </div>
+{/* Quick Start */}
+<div
+  style={{
+    marginTop: 10,
+    display: "flex",
+    gap: 8,
+    alignItems: "center",
+    flexWrap: "wrap",
+  }}
+>
+  <button
+  type="button"
+  className="smallBtn"
+  onClick={() => {
+    const ok = window.confirm(
+      `Replace current axes/nodes?\n\nCreate ${qsAxes} axes with ${qsNodesPerAxis} node(s) each?`
+    );
+    if (!ok) return;
+    quickStart();
+  }}
+  title="Create a starter set of axes + nodes in one click"
+  style={{ whiteSpace: "nowrap" }}
+>
+  ⚡ Quick start
+</button>
+
+<span className="muted" style={{ fontSize: 12, fontWeight: 700 }}>
+  Axes
+</span>
+<input
+  type="text"
+  inputMode="numeric"
+  pattern="[0-9]*"
+  value={qsAxes}
+  onChange={(e) => {
+    const v = e.target.value.replace(/\D/g, "");
+    const n = v === "" ? 0 : parseInt(v, 10);
+    setQsAxes(Math.max(1, Math.min(16, n)));
+  }}
+  style={{
+    width: 34,
+    padding: "6px 6px",
+    textAlign: "center",
+    MozAppearance: "textfield",
+  }}
+  title="Number of axes"
+/>
+
+<span className="muted" style={{ fontSize: 12, fontWeight: 700 }}>
+  Nodes
+</span>
+<input
+  type="text"
+  inputMode="numeric"
+  pattern="[0-9]*"
+  value={qsNodesPerAxis}
+  onChange={(e) => {
+    const v = e.target.value.replace(/\D/g, "");
+    const n = v === "" ? 0 : parseInt(v, 10);
+    setQsNodesPerAxis(Math.max(0, Math.min(20, n)));
+  }}
+  style={{
+    width: 34,
+    padding: "6px 6px",
+    textAlign: "center",
+    MozAppearance: "textfield",
+  }}
+  title="Nodes per axis"
+/>
+
+</div>
+
+     
 
     {/* Action buttons */}
     <div
