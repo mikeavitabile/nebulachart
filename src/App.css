@@ -772,3 +772,70 @@ input:focus, select:focus {
   font-weight: 800 !important;
   padding: 10px 12px !important;
 }
+/* Full-height app shell */
+.appShell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* mainSplit should fill remaining space under header (or full space when header is hidden) */
+.mainSplit {
+  flex: 1;
+  min-height: 0; /* critical for children to be able to size to height */
+}
+
+/* When header is removed, mainSplit still fills the whole viewport */
+.appShell.noTopHeader .mainSplit {
+  height: 100vh;
+}
+
+/* Right side needs to allow full-height children */
+.rightPanel {
+  min-height: 0;
+  height: 100%;
+}
+
+.canvasPlaceholder {
+  height: 100%;
+  min-height: 0;
+}
+
+/* Collapsed layout: controls column + canvas column */
+.canvasPlaceholderCollapsed {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* Left controls column */
+.collapsedControlsCol {
+  padding: 12px 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.collapsedTopRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Reuse your header styling but make it flow as a column */
+.canvasHeaderCollapsed {
+  padding: 0;
+}
+
+/* Canvas column should fill all remaining height */
+.canvasStageCol {
+  min-height: 0;
+  height: 100%;
+}
+
+/* The stage itself should fill the column */
+.svgStage {
+  height: 100%;
+}
