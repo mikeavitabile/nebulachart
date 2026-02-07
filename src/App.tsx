@@ -346,7 +346,8 @@ function BlobLayer(props: {
       animRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [axes, nodes, rings]);
+  }, [axes, nodes, rings, ringNow, ringNext, ringLater]);
+
 
   // Ring visibility (your toggles)
   const showByIdx = [showNowBlob, showNextBlob, showLaterBlob];
@@ -1066,32 +1067,34 @@ const deleteAxis = (axisId: string) => {
 
 
   return (
-    <div className="appShell">
-      <header className="header">
-  <strong>babyisland.dev</strong>
-  <span className="muted">Workshop Tool v1</span>
+    <div className={`appShell ${leftCollapsed ? "noTopHeader" : ""}`}>
+      {!leftCollapsed && (
+  <header className="header">
+    <strong>babyisland.dev</strong>
+    <span className="muted">Workshop Tool v1</span>
 
-  <button
-    type="button"
-    className="smallBtn"
-    onClick={() => setGuidebookOpen(true)}
-    style={{ marginLeft: 10 }}
-    title="Open the Baby Island Guidebook"
-  >
-    Guidebook
-  </button>
+    <button
+      type="button"
+      className="smallBtn"
+      onClick={() => setGuidebookOpen(true)}
+      style={{ marginLeft: 10 }}
+      title="Open the Baby Island Guidebook"
+    >
+      Guidebook
+    </button>
 
-  <div style={{ marginLeft: "auto" }}>
+    <div style={{ marginLeft: "auto" }}>
+      <button
+        className="smallBtn"
+        onClick={() => setLeftCollapsed((v) => !v)}
+        title={leftCollapsed ? "Show the left panel" : "Collapse the left panel"}
+      >
+        {leftCollapsed ? "Show panel" : "Collapse panel"}
+      </button>
+    </div>
+  </header>
+)}
 
-          <button
-            className="smallBtn"
-            onClick={() => setLeftCollapsed((v) => !v)}
-            title={leftCollapsed ? "Show the left panel" : "Collapse the left panel"}
-          >
-            {leftCollapsed ? "Show panel" : "Collapse panel"}
-          </button>
-        </div>
-      </header>
 {guidebookOpen && (
   <div
     onClick={() => setGuidebookOpen(false)}
@@ -1524,12 +1527,13 @@ const deleteAxis = (axisId: string) => {
             <input value={title} onChange={(e) => setTitle(e.target.value)} />
           </label>
 
-          <label>
+                    <label>
             Subtitle
             <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} />
           </label>
 
-         <aside className="leftPanel">
+          {/* Left panel sections */}
+
   
 
   {/* --- Rings (must be above Axes & Nodes) --- */}
@@ -2152,18 +2156,44 @@ const deleteAxis = (axisId: string) => {
   </div>
 </aside>
 
-
-</aside>
-
         <main className="rightPanel">
-          <div className="canvasPlaceholder" style={{ position: "relative" }}>
-            <div className="canvasHeader">
-              <div>
-                <div className="title">{title}</div>
-                <div className="subtitle">{subtitle}</div>
+  <div
+    className={`canvasPlaceholder ${leftCollapsed ? "canvasPlaceholderCollapsed" : ""}`}
+    style={{ position: "relative" }}
+  >
+    {/* LEFT COLUMN (only used in collapsed mode) */}
+    {leftCollapsed && (
+      <div className="collapsedControlsCol">
+        <div className="collapsedTopRow">
+          <button
+            className="smallBtn"
+            onClick={() => setLeftCollapsed(false)}
+            title="Show the left panel"
+          >
+            Show panel
+          </button>
 
-                {/* Controls (compact, in-flow) */}
-                <div className="viewBar">
+          
+        </div>
+
+        <div className="canvasHeader canvasHeaderCollapsed">
+          <div>
+            <div className="title">{title}</div>
+            <div className="subtitle">{subtitle}</div>
+
+            {/* Controls (compact, in-flow) */}
+            <div
+  className="viewBar"
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 6,
+    marginTop: 10,
+  }}
+>
+
+
                   <label className="viewToggle" style={{ fontWeight: 800, letterSpacing: 0.2 }}>
                     <input
                       type="checkbox"
@@ -2232,7 +2262,7 @@ const deleteAxis = (axisId: string) => {
                     <span>{rings.find((r) => r.id === "later")?.label ?? "Later"}</span>
                   </label>
 
-                  <span style={{ width: 10 }} />
+                  {/* spacer removed in collapsed mode */}
 
                   <label className="viewToggle" style={{ fontWeight: 800, letterSpacing: 0.2 }}>
                     <input
@@ -2254,12 +2284,124 @@ const deleteAxis = (axisId: string) => {
 </label>
 
 
-                </div>
-              </div>
-            </div>
+                            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* RIGHT PANEL HEADER (only when NOT collapsed) */}
+    {!leftCollapsed && (
+      <div className="canvasHeader">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+          <div className="title">{title}</div>
+          <div className="subtitle">{subtitle}</div>
+
+          {/* Controls row (under subtitle, left-aligned) */}
+          <div
+            className="viewBar"
+            style={{
+              display: "flex",
+              gap: 14,
+              alignItems: "center",
+              flexWrap: "wrap",
+              marginTop: 8,
+            }}
+          >
+            {/* Rings master */}
+            <label className="viewToggle" style={{ fontWeight: 800, letterSpacing: 0.2 }}>
+              <input
+                type="checkbox"
+                checked={showNowBlob && showNextBlob && showLaterBlob}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setShowNowBlob(next);
+                  setShowNextBlob(next);
+                  setShowLaterBlob(next);
+                }}
+              />
+              <span>Rings</span>
+            </label>
+
+            <label className="viewToggle">
+              <input
+                type="checkbox"
+                checked={showNowBlob}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setShowNowBlob(next);
+                  if (!next) {
+                    setShowNextBlob(false);
+                    setShowLaterBlob(false);
+                  }
+                }}
+              />
+              <span>{rings.find((r) => r.id === "now")?.label ?? "Now"}</span>
+            </label>
+
+            <label className="viewToggle">
+              <input
+                type="checkbox"
+                checked={showNextBlob}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setShowNextBlob(next);
+                  if (next) {
+                    setShowNowBlob(true);
+                  } else {
+                    setShowLaterBlob(false);
+                  }
+                }}
+              />
+              <span>{rings.find((r) => r.id === "next")?.label ?? "Next"}</span>
+            </label>
+
+            <label className="viewToggle">
+              <input
+                type="checkbox"
+                checked={showLaterBlob}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setShowLaterBlob(next);
+                  if (next) {
+                    setShowNextBlob(true);
+                    setShowNowBlob(true);
+                  }
+                }}
+              />
+              <span>{rings.find((r) => r.id === "later")?.label ?? "Later"}</span>
+            </label>
+
+            <span style={{ width: 14 }} />
+
+            <label className="viewToggle" style={{ fontWeight: 800, letterSpacing: 0.2 }}>
+              <input
+                type="checkbox"
+                checked={showNodeLabels}
+                onChange={(e) => setShowNodeLabels(e.target.checked)}
+              />
+              <span>Labels</span>
+            </label>
+
+            <label className="viewToggle">
+              <input
+                type="checkbox"
+                checked={showNodes}
+                onChange={(e) => setShowNodes(e.target.checked)}
+              />
+              <span>Nodes</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    )}
 
 
-            {(() => {
+    {/* CANVAS COLUMN (always present) */}
+    <div className="canvasStageCol">
+
+      {(() => {
+
               const { ref: measuredRef, size } = useSize<HTMLDivElement>();
 
               // combine refs: we need the div measured AND stageRef for tooltip positioning
@@ -2944,9 +3086,11 @@ const isSelected = selectedNodeId === n.id;
                   )}
                 </div>
               );
-            })()}
-          </div>
-        </main>
+                       })()}
+    </div>
+  </div>
+</main>
+
       </div>
     </div>
   );
