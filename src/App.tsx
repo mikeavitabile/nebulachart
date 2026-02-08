@@ -471,6 +471,8 @@ const clampTooltipToStage = (x: number, y: number) => {
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const babySpinAnimRef = useRef<SVGAnimateTransformElement | null>(null);
+const babySpinDirRef = useRef<1 | -1>(1); // 1 = clockwise, -1 = counter-clockwise
+
 
   // -------------------- Drag state (click + drag) --------------------
 type DragPos = { x: number; y: number };
@@ -2817,15 +2819,23 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
   onClick={(e) => {
     e.stopPropagation();
 
-    // Restart the spin on every click
+    // Set direction BEFORE starting the animation
+    const dir = babySpinDirRef.current;
+
     try {
+      // rotate format is: "angle cx cy"
+      babySpinAnimRef.current?.setAttribute("to", `${dir * 360} ${cx2} ${cy2}`);
       babySpinAnimRef.current?.beginElement();
     } catch {
       // ignore
     }
+
+    // Flip direction for next click
+    babySpinDirRef.current = dir === 1 ? -1 : 1;
   }}
   style={{ cursor: "pointer" }}
 >
+
   <animateTransform
     ref={babySpinAnimRef}
     attributeName="transform"
