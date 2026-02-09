@@ -126,6 +126,45 @@ function writeSnapshots(next: BabyIslandSnapshotV1[]) {
   localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(next));
 }
 
+// -------------------- Export helpers --------------------
+function slugifyFilename(input: string) {
+  return (input || "baby-island")
+    .trim()
+    .toLowerCase()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function downloadTextFile(filename: string, text: string, mime = "application/json") {
+  try {
+    const blob = new Blob([text], { type: mime });
+    downloadBlobFile(filename, blob);
+  } catch (e) {
+    console.warn("Download failed:", e);
+  }
+}
+
+function downloadBlobFile(filename: string, blob: Blob) {
+  try {
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    console.warn("Download failed:", e);
+  }
+}
+
+
+
 function getStrategyIdFromUrl(): string | null {
   try {
     const url = new URL(window.location.href);
@@ -449,6 +488,10 @@ const BLANK_NODES: NodeItem[] = [];
   const hasHydratedRef = useRef(false);
 
   const stageRef = useRef<HTMLDivElement | null>(null);
+
+  // For PNG export (serialize the SVG)
+  const svgExportRef = useRef<SVGSVGElement | null>(null);
+
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
   // Clamp tooltip to the visible stage so it never goes off-screen
 const clampTooltipToStage = (x: number, y: number) => {
@@ -498,7 +541,50 @@ const didDragRef = useRef(false);
   const [babySpin, setBabySpin] = useState(0);
   const [snapshots, setSnapshots] = useState<BabyIslandSnapshotV1[]>([]);
   const [activeSnapshotId, setActiveSnapshotId] = useState<string | null>(null);
-  const [copiedAt, setCopiedAt] = useState<number | null>(null);
+   const [copiedAt, setCopiedAt] = useState<number | null>(null);
+
+  // -------------------- Import (data file JSON) --------------------
+  const importFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const importStrategyFromFile = async (file: File) => {
+    try {
+      const raw = await file.text();
+      const parsed = safeParseJSON<any>(raw);
+
+      if (!parsed || parsed.format !== "baby-island-export-v1" || !parsed.state) {
+        window.alert("That file doesn’t look like a Baby Island export.");
+        return;
+      }
+
+      const s = parsed.state as BabyIslandSavedStateV1;
+
+      // Minimal validation / normalization
+      const nextState: BabyIslandSavedStateV1 = {
+        v: 1,
+        savedAt: Date.now(),
+        title: typeof s.title === "string" ? s.title : "Imported Strategy",
+        subtitle: typeof s.subtitle === "string" ? s.subtitle : "",
+        axes: Array.isArray(s.axes) ? s.axes : [],
+        rings: ensureUncommittedRing(Array.isArray(s.rings) ? s.rings : DEFAULT_RINGS),
+        nodes: Array.isArray(s.nodes) ? s.nodes : [],
+      };
+
+      const baseName =
+        (typeof parsed.snapshotName === "string" && parsed.snapshotName.trim()) ||
+        (file.name ? file.name.replace(/\.[^/.]+$/, "") : "") ||
+        "Imported Strategy";
+
+      // Create as NEW snapshot and make active
+      createSnapshot(`${baseName} (Imported)`, true, nextState);
+
+      // reset the input so importing the same file twice still triggers change
+      if (importFileInputRef.current) importFileInputRef.current.value = "";
+    } catch (e) {
+      console.warn("Import failed:", e);
+      window.alert("Import failed. The file may be corrupted.");
+    }
+  };
+
 
   const copyStrategyLink = async () => {
   if (!activeSnapshotId) return;
@@ -596,6 +682,258 @@ const quickStart = () => {
     rings,
     nodes,
   });
+
+  // -------------------- Export menu (JSON / PNG / CSV) --------------------
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!exportMenuOpen) return;
+
+    const onDocDown = (e: MouseEvent) => {
+      // Close menu on any outside click
+      // (we’ll stopPropagation on the menu container)
+      setExportMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", onDocDown);
+    return () => document.removeEventListener("mousedown", onDocDown);
+  }, [exportMenuOpen]);
+
+  const getActiveSnapshotName = () => {
+    return (
+      (activeSnapshotId && snapshots.find((s) => s.id === activeSnapshotId)?.name) || "Baby Island"
+    );
+  };
+
+  // 1) JSON export (data file)
+  const exportAsJson = () => {
+    if (!activeSnapshotId) return;
+
+    const state = buildStatePayload();
+    const snapName = getActiveSnapshotName();
+
+    const exportObj = {
+      format: "baby-island-export-v1",
+      exportedAt: Date.now(),
+      snapshotId: activeSnapshotId,
+      snapshotName: snapName,
+      state,
+    };
+
+    const filename = `${slugifyFilename(snapName)}.babyisland.json`;
+    downloadTextFile(filename, JSON.stringify(exportObj, null, 2), "application/json");
+  };
+
+  // Helpers for CSV escaping
+  const csvEscape = (v: any) => {
+    const s = String(v ?? "");
+    if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  };
+
+  // 2) CSV export (Axis Name, North Star, Axis Order, Node Name, Node Ring, Node Order)
+  const exportAsCsv = () => {
+    const snapName = getActiveSnapshotName();
+
+    const axisIndexById = axes.reduce((acc, a, i) => {
+      acc[a.id] = i;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const axisById = axes.reduce((acc, a) => {
+      acc[a.id] = a;
+      return acc;
+    }, {} as Record<string, Axis>);
+
+    const ringLabelById = rings.reduce((acc, r) => {
+      acc[r.id] = r.label;
+      return acc;
+    }, {} as Record<string, string>);
+
+    const header = ["Axis Name", "North Star", "Axis Order", "Node Name", "Node Ring", "Node Order"];
+
+    // Sort rows to be stable/readable: axis order -> node order -> name
+    const sortedNodes = nodes.slice().sort((a, b) => {
+      const axA = axisIndexById[a.axisId] ?? 9999;
+      const axB = axisIndexById[b.axisId] ?? 9999;
+      if (axA !== axB) return axA - axB;
+      if (a.sequence !== b.sequence) return a.sequence - b.sequence;
+      return a.label.localeCompare(b.label);
+    });
+
+    const rows = sortedNodes.map((n) => {
+      const ax = axisById[n.axisId];
+      const axisName = ax?.label ?? "";
+      const northStar = ax?.northStar ?? "";
+      const axisOrder = (axisIndexById[n.axisId] ?? -1) + 1; // 1-based
+      const nodeName = n.label ?? "";
+      const nodeRing = ringLabelById[n.ringId] ?? n.ringId ?? "";
+      const nodeOrder = n.sequence ?? "";
+
+      return [axisName, northStar, axisOrder, nodeName, nodeRing, nodeOrder].map(csvEscape).join(",");
+    });
+
+    const csv = [header.join(","), ...rows].join("\n");
+    const filename = `${slugifyFilename(snapName)}.csv`;
+    downloadTextFile(filename, csv, "text/csv;charset=utf-8");
+  };
+
+  // 3) PNG export (high-res chart only)
+  const exportAsPng = async () => {
+    const snapName = getActiveSnapshotName();
+    const svgEl = svgExportRef.current;
+    if (!svgEl) {
+      window.alert("Couldn’t find the chart SVG to export.");
+      return;
+    }
+
+    // Helper: convert an asset URL to a data URL (for inlining <image>)
+    const toDataUrl = async (url: string): Promise<string | null> => {
+      try {
+        const resp = await fetch(url);
+        const blob = await resp.blob();
+        return await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(new Error("FileReader failed"));
+          reader.readAsDataURL(blob);
+        });
+      } catch (e) {
+        console.warn("toDataUrl failed:", e);
+        return null;
+      }
+    };
+
+    try {
+      // 1) Best-effort: wait for fonts to be ready before we serialize/rasterize
+      try {
+        // @ts-ignore
+        await (document as any).fonts?.ready;
+      } catch {
+        // ignore
+      }
+
+      // Determine dimensions from viewBox (source of truth)
+      const vb = svgEl.getAttribute("viewBox"); // "0 0 w h"
+      let vbW = 1000;
+      let vbH = 800;
+
+      if (vb) {
+        const parts = vb.split(/\s+/).map((x) => parseFloat(x));
+        if (parts.length === 4 && Number.isFinite(parts[2]) && Number.isFinite(parts[3])) {
+          vbW = parts[2];
+          vbH = parts[3];
+        }
+      } else {
+        const r = svgEl.getBoundingClientRect();
+        vbW = Math.max(1, Math.round(r.width));
+        vbH = Math.max(1, Math.round(r.height));
+      }
+
+      // Serialize SVG
+      const serializer = new XMLSerializer();
+      let svgText = serializer.serializeToString(svgEl);
+
+      // Ensure namespaces exist
+      if (!svgText.includes('xmlns="http://www.w3.org/2000/svg"')) {
+        svgText = svgText.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
+      }
+      if (!svgText.includes('xmlns:xlink="http://www.w3.org/1999/xlink"')) {
+        svgText = svgText.replace("<svg", '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+      }
+
+      // CRITICAL: force explicit width/height so rasterizer has intrinsic size
+      const hasWidth = /\swidth="/.test(svgText);
+      const hasHeight = /\sheight="/.test(svgText);
+      if (!hasWidth || !hasHeight) {
+        svgText = svgText.replace("<svg", `<svg width="${vbW}" height="${vbH}"`);
+      }
+
+      // 2) Inline a font style into the exported SVG (helps the rasterizer)
+      const fontStyle = `
+        /* Best-effort: force the same font stack you use in-app */
+        text, tspan {
+          font-family: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+        }
+      `.trim();
+
+      // inject style right after <svg ...>
+      svgText = svgText.replace(/<svg([^>]*)>/, `<svg$1><style><![CDATA[${fontStyle}]]></style>`);
+
+      // 3) Inline the baby image as a data URL so it always renders in the export
+      // babyImg is your imported asset URL string
+      const babyUrl = String(babyImg);
+      const babyDataUrl = await toDataUrl(babyUrl);
+      if (babyDataUrl) {
+        // Replace any occurrence of the baby asset URL in the serialized SVG
+        // (covers href="...", href='...', and cases where Vite rewrites URLs)
+        svgText = svgText.split(babyUrl).join(babyDataUrl);
+      } else {
+        console.warn("PNG export: could not inline baby image (continuing).");
+      }
+
+      const scale = 3; // bump to 4 if you want more resolution
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(vbW * scale);
+      canvas.height = Math.round(vbH * scale);
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("No canvas context");
+
+      // White background for decks
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Render SVG into an <img>
+      const svgBlob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.onload = () => {
+        try {
+          // Draw to destination size (prevents corner-crop surprises)
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          canvas.toBlob(
+            (pngBlob) => {
+              if (!pngBlob) {
+                window.alert("PNG export failed (canvas toBlob returned null).");
+                return;
+              }
+              const filename = `${slugifyFilename(snapName)}.png`;
+              downloadBlobFile(filename, pngBlob);
+            },
+            "image/png"
+          );
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        window.alert("PNG export failed to render the SVG.");
+      };
+
+      img.src = url;
+    } catch (e) {
+      console.warn("PNG export failed:", e);
+      window.alert("PNG export failed.");
+    }
+  };
+
+
+
+  const onExportPick = (kind: "json" | "png" | "csv") => {
+    setExportMenuOpen(false);
+    if (kind === "json") exportAsJson();
+    if (kind === "png") exportAsPng();
+    if (kind === "csv") exportAsCsv();
+  };
+
+
 
   const loadSnapshotIntoState = (snap: BabyIslandSnapshotV1) => {
     const s = snap.state;
@@ -2036,94 +2374,174 @@ const deleteAxis = (axisId: string) => {
      
 
     {/* Action buttons */}
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        marginTop: 10,
-        width: "100%",
-        flexWrap: "wrap",
-      }}
-    >
-      <button
-        className="smallBtn"
-        onClick={() => saveCurrentSnapshot("manual")}
-        title="Save current strategy"
-        disabled={!activeSnapshotId}
-      >
-        Save
-      </button>
-
-      <button
-        className="smallBtn"
-        onClick={() => {
-          const name = window.prompt("Name this strategy:", "New Strategy");
-          if (!name) return;
-          createSnapshot(name, true);
+    <div style={{ marginTop: 10, width: "100%" }}>
+      {/* Row 1: Save / Save As / Dupe / New */}
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          width: "100%",
+          flexWrap: "wrap",
         }}
-        title="Save as a new named strategy"
       >
-        Save As
-      </button>
+        <button
+          className="smallBtn"
+          onClick={() => saveCurrentSnapshot("manual")}
+          title="Save current strategy"
+          disabled={!activeSnapshotId}
+        >
+          Save
+        </button>
 
-<button
-        className="smallBtn"
-        onClick={() => {
-          if (!activeSnapshotId) return;
-          duplicateSnapshot(activeSnapshotId);
+        <button
+          className="smallBtn"
+          onClick={() => {
+            const name = window.prompt("Name this strategy:", "New Strategy");
+            if (!name) return;
+            createSnapshot(name, true);
+          }}
+          title="Save as a new named strategy"
+        >
+          Save As
+        </button>
+
+        <button
+          className="smallBtn"
+          onClick={() => {
+            if (!activeSnapshotId) return;
+            duplicateSnapshot(activeSnapshotId);
+          }}
+          title="Duplicate current strategy"
+          disabled={!activeSnapshotId}
+        >
+          Dupe
+        </button>
+
+        <button
+          className="smallBtn"
+          onClick={() => {
+            const name = window.prompt("Name new strategy:", "Untitled Strategy");
+            if (!name) return;
+
+            // wipe to blank first
+            resetWorkingStateBlank();
+
+            // then snapshot the blank state
+            requestAnimationFrame(() => {
+              const blank: BabyIslandSavedStateV1 = {
+                v: 1,
+                savedAt: Date.now(),
+                title: "Untitled Strategy",
+                subtitle: "",
+                axes: BLANK_AXES,
+                rings: DEFAULT_RINGS,
+                nodes: BLANK_NODES,
+              };
+
+              createSnapshot(name, true, blank);
+            });
+          }}
+          title="Start a brand new blank strategy"
+        >
+          New
+        </button>
+      </div>
+
+      {/* Row 2: Export / Import / Delete */}
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          width: "100%",
+          flexWrap: "wrap",
+          marginTop: 8,
         }}
-        title="Duplicate current strategy"
-        disabled={!activeSnapshotId}
       >
-        Dupe
-      </button>
+        <div style={{ position: "relative" }}>
+          <button
+            className="smallBtn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExportMenuOpen((v) => !v);
+            }}
+            title="Export this strategy"
+            disabled={!activeSnapshotId}
+          >
+            Export ▾
+          </button>
 
-      <button
-        className="smallBtn"
-        onClick={() => {
-          const name = window.prompt("Name new strategy:", "Untitled Strategy");
-          if (!name) return;
+          {exportMenuOpen && (
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              style={{
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                left: 0,
+                zIndex: 9999,
+                background: "white",
+                border: "1px solid rgba(0,0,0,0.12)",
+                borderRadius: 10,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+                padding: 8,
+                minWidth: 180,
+                display: "grid",
+                gap: 6,
+              }}
+            >
+              <button className="smallBtn" onClick={() => onExportPick("json")} title="Export JSON data file">
+                JSON (data file)
+              </button>
+              <button className="smallBtn" onClick={() => onExportPick("png")} title="Export a high-res PNG of the chart">
+                PNG (image)
+              </button>
+              <button className="smallBtn" onClick={() => onExportPick("csv")} title="Export a CSV of axes + nodes">
+                CSV (table)
+              </button>
+            </div>
+          )}
+        </div>
 
-          // wipe to blank first
-          resetWorkingStateBlank();
 
-          // then snapshot the blank state
-          requestAnimationFrame(() => {
-            const blank: BabyIslandSavedStateV1 = {
-              v: 1,
-              savedAt: Date.now(),
-              title: "Untitled Strategy",
-              subtitle: "",
-              axes: BLANK_AXES,
-              rings: DEFAULT_RINGS,
-              nodes: BLANK_NODES,
-            };
+        {/* hidden file input */}
+        <input
+          ref={importFileInputRef}
+          type="file"
+          accept=".json,.babyisland.json,application/json"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            importStrategyFromFile(f);
+          }}
+        />
 
-            createSnapshot(name, true, blank);
-          });
-        }}
-        title="Start a brand new blank strategy"
-      >
-        New
-      </button>
+        <button
+          className="smallBtn"
+          onClick={() => importFileInputRef.current?.click()}
+          title="Import a previously exported Baby Island data file (JSON)"
+        >
+          Import
+        </button>
 
-      <button
-        className="dangerBtn"
-        onClick={() => {
-          if (!activeSnapshotId) return;
-          const current = snapshots.find((s) => s.id === activeSnapshotId);
-          const ok = window.confirm(
-            `Delete strategy "${current?.name ?? "this strategy"}"? This cannot be undone.`
-          );
-          if (!ok) return;
-          deleteSnapshot(activeSnapshotId);
-        }}
-        title="Delete current strategy"
-        disabled={!activeSnapshotId}
-      >
-        Delete
-      </button>
+        <button
+          className="dangerBtn"
+          onClick={() => {
+            if (!activeSnapshotId) return;
+            const current = snapshots.find((s) => s.id === activeSnapshotId);
+            const ok = window.confirm(
+              `Delete strategy "${current?.name ?? "this strategy"}"? This cannot be undone.`
+            );
+            if (!ok) return;
+            deleteSnapshot(activeSnapshotId);
+          }}
+          title="Delete current strategy"
+          disabled={!activeSnapshotId}
+        >
+          Delete
+        </button>
+      </div>
     </div>
+
 
     {/* Autosave + Saved timestamp */}
     <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
@@ -2659,7 +3077,8 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
 
               return (
                 <div className="svgStage" ref={setStageEl}>
-                  <svg
+                    <svg
+  ref={svgExportRef}
   style={{ fontFamily: '"Outfit", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }}
   width="100%"
   height="100%"
@@ -2669,6 +3088,7 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
   onPointerUp={pointerEndDrag}
   onPointerCancel={pointerEndDrag}
 >
+
 
  <style>
   {`
