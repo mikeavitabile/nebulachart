@@ -529,6 +529,10 @@ const activePointerIdRef = useRef<number | null>(null);
 const dragStartClientRef = useRef<{ x: number; y: number } | null>(null);
 const didDragRef = useRef(false);
 
+// Inline edit: manual double-click tracker (SVG dblclick is unreliable with pointer capture)
+const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
+
+
   const nodeRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [showNodeLabels, setShowNodeLabels] = useState(true);
   const [showNodes, setShowNodes] = useState(true);
@@ -542,6 +546,13 @@ const didDragRef = useRef(false);
   const [snapshots, setSnapshots] = useState<BabyIslandSnapshotV1[]>([]);
   const [activeSnapshotId, setActiveSnapshotId] = useState<string | null>(null);
    const [copiedAt, setCopiedAt] = useState<number | null>(null);
+
+  // --- Inline node label edit (presentation mode) ---
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [editingNodeValue, setEditingNodeValue] = useState<string>("");
+  const [editingNodePos, setEditingNodePos] = useState<{ left: number; top: number } | null>(null);
+  const editNodeInputRef = useRef<HTMLInputElement | null>(null);
+
 
   // -------------------- Import (data file JSON) --------------------
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1384,7 +1395,27 @@ const addRing = () => {
   ]);
 };
 
+  const commitInlineNodeEdit = () => {
+    if (!editingNodeId) return;
+
+    const next = editingNodeValue.trim();
+    if (next.length > 0) {
+      setNodes((prev) => prev.map((n) => (n.id === editingNodeId ? { ...n, label: next } : n)));
+    }
+
+    setEditingNodeId(null);
+    setEditingNodeValue("");
+    setEditingNodePos(null);
+  };
+
+  const cancelInlineNodeEdit = () => {
+    setEditingNodeId(null);
+    setEditingNodeValue("");
+    setEditingNodePos(null);
+  };
+
 const deleteAxis = (axisId: string) => {
+
   const axis = axes.find((a) => a.id === axisId);
   const count = nodes.filter((n) => n.axisId === axisId).length;
 
@@ -3075,8 +3106,33 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
 
 
 
+              const svgPointToClient = (x: number, y: number) => {
+                const rect = stageRef.current?.getBoundingClientRect();
+                if (!rect) return { left: 0, top: 0 };
+
+                // x,y are in SVG viewBox space; map into the displayed DOM size
+                const left = (x / w) * rect.width;
+                const top = (y / h) * rect.height;
+
+                return { left, top };
+              };
+
+              const startInlineNodeEdit = (nodeId: string, currentLabel: string, x: number, y: number) => {
+                const p = svgPointToClient(x, y);
+                setEditingNodeId(nodeId);
+                setEditingNodeValue(currentLabel);
+                setEditingNodePos({ left: p.left, top: p.top });
+
+                // focus next tick after it renders
+                requestAnimationFrame(() => {
+                  editNodeInputRef.current?.focus();
+                  editNodeInputRef.current?.select();
+                });
+              };
+
               return (
                 <div className="svgStage" ref={setStageEl}>
+
                     <svg
   ref={svgExportRef}
   style={{ fontFamily: '"Outfit", system-ui, -apple-system, BlinkMacSystemFont, sans-serif' }}
@@ -3391,11 +3447,31 @@ const isSelected = selectedNodeId === n.id;
                             <g
                               key={n.id}
                               onPointerDown={(e) => {
-  // Don’t let this start text selection / scroll jank
   e.preventDefault();
   e.stopPropagation();
 
-  // Select on mouse down (per your requirement)
+  // --- Manual double-click detection ---
+  const now = Date.now();
+  const last = lastPointerDownRef.current;
+
+  if (last && last.id === n.id && now - last.t < 320) {
+    // Treat as double click → start inline edit and DO NOT begin drag
+    lastPointerDownRef.current = null;
+
+    // kill any pending drag state
+    activePointerIdRef.current = null;
+    dragStartClientRef.current = null;
+    didDragRef.current = false;
+    setDraggingNodeId(null);
+    setDragPos(null);
+
+    startInlineNodeEdit(n.id, n.label, x, y);
+    return;
+  }
+
+  lastPointerDownRef.current = { id: n.id, t: now };
+
+  // Normal behavior: select + allow dragging
   expandAxis(n.axisId);
   setSelectedNodeId(n.id);
 
@@ -3404,17 +3480,15 @@ const isSelected = selectedNodeId === n.id;
   didDragRef.current = false;
 
   setDraggingNodeId(n.id);
-
-  // Initialize dragPos at current node center (so first move is smooth)
   setDragPos({ x, y });
 
-  // Capture pointer so we keep getting move/up even if leaving the node
   try {
     (e.currentTarget as any).setPointerCapture?.(e.pointerId);
   } catch {
     // ignore
   }
 }}
+
 
 
                               onMouseEnter={(e) => {
@@ -3441,14 +3515,20 @@ const isSelected = selectedNodeId === n.id;
                               }}
                               style={{ cursor: "pointer" }}
                             >
-                              <circle
+                                                            <circle
                                 cx={x}
                                 cy={y}
                                 r={isSelected ? 11 : 8}
                                 fill={isSelected ? "#111" : "#0CE7A8"}
                                 stroke={isSelected ? "#0CE7A8" : "rgba(0,0,0,0.25)"}
                                 strokeWidth={isSelected ? 3 : 1}
+                                onDoubleClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  startInlineNodeEdit(n.id, n.label, x, y);
+                                }}
                               />
+
 
                               {showNodeLabels && (
                                 <text
@@ -3457,11 +3537,17 @@ const isSelected = selectedNodeId === n.id;
                                   dominantBaseline="middle"
                                   fontSize="13"
                                   fill={isSelected ? "#111" : "#333"}
-                                  style={{ fontWeight: isSelected ? 600 : 300 }}
+                                  style={{ fontWeight: isSelected ? 600 : 300, cursor: "text" }}
+                                  onDoubleClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    startInlineNodeEdit(n.id, n.label, x, y);
+                                  }}
                                 >
                                   {n.label}
                                 </text>
                               )}
+
                             </g>
                           );
                         });
@@ -3514,7 +3600,48 @@ const isSelected = selectedNodeId === n.id;
                       {nodeTooltip.text}
                     </div>
                   )}
+
+                  {/* Inline node label editor overlay */}
+                  {editingNodeId && editingNodePos && (
+                    <input
+                      ref={editNodeInputRef}
+                      value={editingNodeValue}
+                      onChange={(e) => setEditingNodeValue(e.target.value)}
+                      onBlur={() => commitInlineNodeEdit()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          commitInlineNodeEdit();
+                        } else if (e.key === "Escape") {
+                          e.preventDefault();
+                          cancelInlineNodeEdit();
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        // prevent dragging/selecting behind the input
+                        e.stopPropagation();
+                      }}
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        top: 0,
+                        transform: `translate(${Math.round(editingNodePos.left + 14)}px, ${Math.round(
+                          editingNodePos.top - 12
+                        )}px)`,
+                        width: 220,
+                        padding: "6px 8px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(0,0,0,0.18)",
+                        boxShadow: "0 6px 18px rgba(0,0,0,0.10)",
+                        fontSize: 13,
+                        fontFamily:
+                          '"Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+                        outline: "none",
+                      }}
+                    />
+                  )}
                 </div>
+
               );
                        })()}
     </div>
