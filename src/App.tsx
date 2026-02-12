@@ -20,7 +20,9 @@ type NodeItem = {
   axisId: string;
   ringId: string;
   sequence: number;
+  wrapWidth?: number | null; // optional per-node label wrap (px)
 };
+
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
@@ -183,6 +185,50 @@ function setStrategyIdInUrl(strategyId: string | null) {
   } catch {
     // ignore
   }
+}
+const DEFAULT_NODE_WRAP_WIDTH = 150;
+const NODE_LABEL_FONT_SIZE = 13;
+const NODE_LABEL_LINE_H = 14;
+
+// Wrap by word into approx maxChars per line (based on px width)
+function wrapNodeLabel(label: string, wrapWidthPx: number) {
+  const text = String(label ?? "").trim();
+  if (!text) return [""];
+
+  // rough char width at 13px for Outfit-ish fonts
+  const approxCharPx = 7;
+  const maxChars = Math.max(6, Math.floor((wrapWidthPx || DEFAULT_NODE_WRAP_WIDTH) / approxCharPx));
+
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let cur = "";
+
+  const pushCur = () => {
+    if (cur.trim()) lines.push(cur.trim());
+    cur = "";
+  };
+
+  for (const w of words) {
+    // if a single word is huge, hard-break it
+    if (w.length > maxChars) {
+      if (cur) pushCur();
+      for (let i = 0; i < w.length; i += maxChars) {
+        lines.push(w.slice(i, i + maxChars));
+      }
+      continue;
+    }
+
+    const next = cur ? `${cur} ${w}` : w;
+    if (next.length <= maxChars) {
+      cur = next;
+    } else {
+      pushCur();
+      cur = w;
+    }
+  }
+  pushCur();
+
+  return lines.length ? lines : [text];
 }
 
 function easeInOutCubic(t: number) {
@@ -611,6 +657,10 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const [editingNodePos, setEditingNodePos] = useState<{ left: number; top: number } | null>(null);
   const editNodeInputRef = useRef<HTMLInputElement | null>(null);
 
+  // --- Per-node wrap resize (Slides-style drag handle) ---
+const [resizingWrapNodeId, setResizingWrapNodeId] = useState<string | null>(null);
+const wrapResizeStartRef = useRef<{ x: number; w: number } | null>(null);
+
 
   // -------------------- Import (data file JSON) --------------------
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -719,10 +769,12 @@ const quickStart = () => {
   const newNodes: NodeItem[] = newAxes.flatMap((ax) =>
     Array.from({ length: nodesPerAxis }, (_, j) => ({
       id: uid(),
-      label: `Node ${j + 1}`,
-      axisId: ax.id,
-      ringId: "uncommitted",
-      sequence: j + 1,
+label: `Node ${j + 1}`,
+axisId: ax.id,
+ringId: "uncommitted",
+sequence: j + 1,
+wrapWidth: null,
+
     }))
   );
 
@@ -2187,13 +2239,15 @@ const deleteAxis = (axisId: string) => {
 
                       setNodes((prev) => [
                         ...prev,
-                        {
-                          id: newId,
-                          label: "New node",
-                          axisId: axis.id,
-                          ringId: defaultRingId,
-                          sequence: maxSeq + 1,
-                        },
+{
+  id: newId,
+  label: "New node",
+  axisId: axis.id,
+  ringId: defaultRingId,
+  sequence: maxSeq + 1,
+  wrapWidth: null,
+},
+
                       ]);
 
                       setSelectedNodeId(newId);
@@ -2262,6 +2316,45 @@ const deleteAxis = (axisId: string) => {
                                     }
                                   />
                                 </div>
+
+<div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
+  <label className="viewToggle" style={{ margin: 0 }}>
+    <input
+      type="checkbox"
+      checked={!!n.wrapWidth}
+      onChange={(e) => {
+        const on = e.target.checked;
+        setNodes((prev) =>
+          prev.map((x) =>
+            x.id === n.id
+              ? { ...x, wrapWidth: on ? DEFAULT_NODE_WRAP_WIDTH : null }
+              : x
+          )
+        );
+      }}
+    />
+    <span>Wrap</span>
+  </label>
+
+  <span className="muted" style={{ fontSize: 12, fontWeight: 700 }}>W</span>
+  <input
+    type="text"
+    inputMode="numeric"
+    pattern="[0-9]*"
+    value={n.wrapWidth ? String(n.wrapWidth) : ""}
+    placeholder="px"
+    onChange={(e) => {
+      const v = e.target.value.replace(/\D/g, "");
+      const num = v === "" ? null : Math.max(60, Math.min(360, parseInt(v, 10)));
+      setNodes((prev) =>
+        prev.map((x) => (x.id === n.id ? { ...x, wrapWidth: num } : x))
+      );
+    }}
+    style={{ width: 58, padding: "6px 8px" }}
+    title="Wrap width (px)"
+  />
+</div>
+
 
                                 <div className="nodeControls">
                                   <div className="nodeControl">
@@ -3246,9 +3339,40 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
   height="100%"
   viewBox={`0 0 ${w} ${h}`}
   preserveAspectRatio="xMidYMid meet"
-  onPointerMove={pointerMoveDrag}
-  onPointerUp={pointerEndDrag}
-  onPointerCancel={pointerEndDrag}
+  onPointerMove={(e) => {
+  // node dragging (existing)
+  pointerMoveDrag(e);
+
+  // wrap handle resizing (new)
+  if (!resizingWrapNodeId) return;
+  const start = wrapResizeStartRef.current;
+  if (!start) return;
+
+  const dx = e.clientX - start.x;
+  const nextW = Math.max(60, Math.min(360, Math.round(start.w + dx)));
+
+  setNodes((prev) =>
+    prev.map((x) =>
+      x.id === resizingWrapNodeId ? { ...x, wrapWidth: nextW } : x
+    )
+  );
+}}
+onPointerUp={(e) => {
+  // end node drag (existing)
+  pointerEndDrag(e);
+
+  // end wrap resize (new)
+  if (resizingWrapNodeId) {
+    setResizingWrapNodeId(null);
+    wrapResizeStartRef.current = null;
+  }
+}}
+onPointerCancel={(e) => {
+  pointerEndDrag(e);
+  setResizingWrapNodeId(null);
+  wrapResizeStartRef.current = null;
+}}
+
 >
 
 
@@ -3667,23 +3791,81 @@ const isSelected = selectedNodeId === n.id;
                               />
 
 
-                              {showNodeLabels && (
-                                <text
-                                  x={x + 12}
-                                  y={y}
-                                  dominantBaseline="middle"
-                                  fontSize="13"
-                                  fill={isSelected ? "#111" : "#333"}
-                                  style={{ fontWeight: isSelected ? 600 : 300, cursor: "text" }}
-                                  onDoubleClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    startInlineNodeEdit(n.id, n.label, x, y);
-                                  }}
-                                >
-                                  {n.label}
-                                </text>
-                              )}
+                             {showNodeLabels && (() => {
+  const wrapW = n.wrapWidth ? Math.max(60, Math.min(360, n.wrapWidth)) : null;
+  const lines = wrapW ? wrapNodeLabel(n.label, wrapW) : [n.label];
+
+  // vertically center multi-line labels around the node
+  const lineH = NODE_LABEL_LINE_H;
+  const startY = y - ((lines.length - 1) * lineH) / 2;
+
+  const textX = x + 12;
+
+  const handleX = wrapW ? (textX + wrapW) : (textX + 220); // fallback handle pos if you want to enable even when unwrapped
+
+  return (
+    <g>
+      <text
+        x={textX}
+        y={startY}
+        fontSize={NODE_LABEL_FONT_SIZE}
+        fill={isSelected ? "#111" : "#333"}
+        style={{ fontWeight: isSelected ? 600 : 300, cursor: "text", userSelect: "none" }}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          startInlineNodeEdit(n.id, n.label, x, y);
+        }}
+      >
+        {lines.map((ln, idx) => (
+          <tspan key={idx} x={textX} dy={idx === 0 ? 0 : lineH}>
+            {ln}
+          </tspan>
+        ))}
+      </text>
+
+      {/* Slides-style wrap handle (only when selected) */}
+      {isSelected && (
+        <g
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setResizingWrapNodeId(n.id);
+
+            const currentW = n.wrapWidth ? n.wrapWidth : DEFAULT_NODE_WRAP_WIDTH;
+            wrapResizeStartRef.current = { x: e.clientX, w: currentW };
+
+            try {
+              (e.currentTarget as any).setPointerCapture?.(e.pointerId);
+            } catch {}
+          }}
+        >
+          {/* faint guide line */}
+          <line
+            x1={textX + (n.wrapWidth ?? DEFAULT_NODE_WRAP_WIDTH)}
+            y1={startY - 10}
+            x2={textX + (n.wrapWidth ?? DEFAULT_NODE_WRAP_WIDTH)}
+            y2={startY + (lines.length - 1) * lineH + 10}
+            stroke="rgba(0,0,0,0.18)"
+            strokeWidth={1}
+          />
+
+          {/* grab handle */}
+          <rect
+            x={textX + (n.wrapWidth ?? DEFAULT_NODE_WRAP_WIDTH) - 5}
+            y={y - 6}
+            width={10}
+            height={12}
+            rx={4}
+            fill="rgba(0,0,0,0.22)"
+            style={{ cursor: "ew-resize" }}
+          />
+        </g>
+      )}
+    </g>
+  );
+})()}
+
 
                             </g>
                           );
