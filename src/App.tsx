@@ -269,16 +269,74 @@ function BlobLayer(props: {
   // MUST mirror your dot positioning logic (spread affects "furthest dot")
   const spread = 18;
 
-  const dotRadiusForNodeOnAxis = (axisNodesOrdered: NodeItem[], n: NodeItem) => {
-    const baseR = ringRadiusById[n.ringId] ?? ringLater;
+const dotRadiusForNodeOnAxis = (axisNodesOrdered: NodeItem[], n: NodeItem) => {
+  // Mirror the exact positioning rules used by the chart:
+  // - Normal rings (now/next/later) use base ring radius + spread.
+  // - If there is ANY uncommitted node on this axis, then Later + Uncommitted share the OUTER band.
+  //   In that case, Later’s radius is computed via even spacing in that band (NOT ringLater edge).
 
-    const ringList = axisNodesOrdered.filter((x) => x.ringId === n.ringId);
-    const idx = ringList.findIndex((x) => x.id === n.id);
+  const hasUncommitted = axisNodesOrdered.some((x) => x.ringId === "uncommitted");
+
+  // Group by ring for spread math
+  const nodesByRing = rings.reduce((acc, r) => {
+    acc[r.id] = axisNodesOrdered.filter((x) => x.ringId === r.id);
+    return acc;
+  }, {} as Record<string, NodeItem[]>);
+
+  const rawDotR = (node: NodeItem) => {
+    const base = ringRadiusById[node.ringId] ?? ringLater;
+    const ringList = nodesByRing[node.ringId] ?? [];
+    const idx = ringList.findIndex((x) => x.id === node.id);
     const k = ringList.length;
-
-    const offset = k <= 1 ? 0 : ((idx / (k - 1)) * 2 - 1) * spread; // -spread..+spread
-    return baseR + offset;
+    const offset = k <= 1 ? 0 : ((idx / (k - 1)) * 2 - 1) * spread;
+    return base + offset;
   };
+
+  // Shared outer band behavior
+  if (hasUncommitted && (n.ringId === "later" || n.ringId === "uncommitted")) {
+    // “Inner committed” means everything before the outer band (now/next only)
+    const innerCommitted = axisNodesOrdered.filter(
+      (x) => x.ringId !== "uncommitted" && x.ringId !== "later"
+    );
+
+    const innerCommittedMaxRawR =
+      innerCommitted.length === 0 ? 0 : Math.max(...innerCommitted.map(rawDotR));
+
+    const outerBand = axisNodesOrdered.filter(
+      (x) => x.ringId === "later" || x.ringId === "uncommitted"
+    );
+
+    const orderedOuter = outerBand
+      .slice()
+      .sort((a, b) => a.sequence - b.sequence || a.label.localeCompare(b.label));
+
+    const i = orderedOuter.findIndex((x) => x.id === n.id);
+    const k = orderedOuter.length;
+
+    const start = innerCommittedMaxRawR; // after last now/next dot (or center)
+    const end = ringLater;               // outer edge
+    const gap = k <= 0 ? 0 : (end - start) / (k + 1);
+
+    // Evenly spaced in the band; no spread needed
+    return start + (i + 1) * gap;
+  }
+
+  // Default behavior (now/next/later without shared-band rule)
+// Mirror the same "single later inset" polish used by the dots.
+if (n.ringId === "later") {
+  const hasUncommitted = axisNodesOrdered.some((x) => x.ringId === "uncommitted");
+  const laterCount = axisNodesOrdered.filter((x) => x.ringId === "later").length;
+
+  if (!hasUncommitted && laterCount === 1) {
+    const SINGLE_LATER_INSET = 14;
+    return rawDotR(n) - SINGLE_LATER_INSET;
+  }
+}
+
+return rawDotR(n);
+
+};
+
 
   // Build radii array for a cumulative target ring rank
   const EXCLUDED_FROM_BLOBS = new Set(["uncommitted"]);
@@ -1367,6 +1425,21 @@ const moveAxis = (axisId: string, direction: "up" | "down") => {
     return next;
   });
 };
+const rotateAxesLeft = () => {
+  setAxes((prev) => {
+    if (prev.length <= 1) return prev;
+    const [first, ...rest] = prev;
+    return [...rest, first];
+  });
+};
+
+const rotateAxesRight = () => {
+  setAxes((prev) => {
+    if (prev.length <= 1) return prev;
+    const last = prev[prev.length - 1];
+    return [last, ...prev.slice(0, prev.length - 1)];
+  });
+};
 
 
 const addAxis = () => {
@@ -2328,6 +2401,31 @@ const deleteAxis = (axisId: string) => {
 >
   {copiedAt ? "✓" : "🔗"}
 </span>
+<div
+  style={{
+    display: "flex",
+    gap: 8,
+    marginTop: 6,
+    width: "100%",
+    flexWrap: "wrap",
+  }}
+>
+  <button
+    className="smallBtn"
+    onClick={rotateAxesLeft}
+    title="Rotate all axes counter-clockwise"
+  >
+    ↺ Rotate
+  </button>
+
+  <button
+    className="smallBtn"
+    onClick={rotateAxesRight}
+    title="Rotate all axes clockwise"
+  >
+    ↻ Rotate
+  </button>
+</div>
 
     </div>
 {/* Quick Start */}
@@ -2960,11 +3058,19 @@ function computeCommittedMaxRawRForAxis(axisId: string) {
     return acc2;
   }, {} as Record<string, NodeItem[]>);
 
-  const committed = axisNodes.filter((n) => n.ringId !== "uncommitted");
-  if (committed.length === 0) return 0;
+// For snap logic, we want the “last committed before the outer band”
+// when uncommitted exists, that means Now/Next only (exclude Later)
+const hasUncommitted = axisNodes.some((n) => n.ringId === "uncommitted");
 
-  return Math.max(
-    ...committed.map((cn) => {
+const committed = axisNodes.filter((n) =>
+  hasUncommitted ? (n.ringId !== "uncommitted" && n.ringId !== "later") : (n.ringId !== "uncommitted")
+);
+
+if (committed.length === 0) return 0;
+
+return Math.max(
+  ...committed.map((cn) => {
+
       const base = ringRadiusByIdBase[cn.ringId] ?? ringLater;
 
       const ringList = nodesByRing[cn.ringId] ?? [];
@@ -3370,37 +3476,47 @@ const nodesByRing = rings.reduce((acc2, r) => {
   return acc2;
 }, {} as Record<string, NodeItem[]>);
 
-// Compute the furthest committed DOT radius on this axis (excluding uncommitted)
-// If none exist, midpoint should be between center and edge (ringLater / 2)
-const committedNodes = axisNodes.filter((n) => n.ringId !== "uncommitted");
+// If we have ANY uncommitted nodes on this axis, we want the OUTER band to be shared by:
+//   - Later
+//   - Uncommitted
+// so we don’t pin Later to the edge and then stack uncommitted on top of it.
 
-const committedMaxRawR =
-  committedNodes.length === 0
-    ? 0
-    : Math.max(
-        ...committedNodes.map((cn) => {
-          const base = ringRadiusById[cn.ringId] ?? ringLater;
+// Helpers: compute a "raw" dot radius the same way everywhere (base ring + spread)
+const rawDotR = (node: NodeItem) => {
+  const base = ringRadiusById[node.ringId] ?? ringLater;
 
-          const ringList = nodesByRing[cn.ringId] ?? [];
-          const idx = ringList.findIndex((x) => x.id === cn.id);
-          const k = ringList.length;
+  const ringList = nodesByRing[node.ringId] ?? [];
+  const idx = ringList.findIndex((x) => x.id === node.id);
+  const k = ringList.length;
 
-          const offset =
-            k <= 1 ? 0 : ((idx / (k - 1)) * 2 - 1) * spread; // -spread .. +spread
+  const offset = k <= 1 ? 0 : ((idx / (k - 1)) * 2 - 1) * spread; // -spread .. +spread
+  return base + offset;
+};
 
-          return base + offset;
-        })
-      );
-
-// Uncommitted: split remaining space (from last committed dot to edge) evenly.
-// If no committed dots: split from center to edge.
 const uncommittedList = nodesByRing["uncommitted"] ?? [];
-const uncommittedCount = uncommittedList.length;
+const hasUncommitted = uncommittedList.length > 0;
 
-// Start of the "remaining space" on this axis
-const uncommittedStartR = committedNodes.length === 0 ? 0 : committedMaxRawR;
-// End is the outer edge (we’ll still clamp later)
-const uncommittedEndR = ringLater;
+// “InnerCommitted” means “everything BEFORE the outer band”
+// i.e. Now/Next only (we intentionally exclude Later here when uncommitted exists)
+const innerCommittedNodes = axisNodes.filter(
+  (n) => n.ringId !== "uncommitted" && n.ringId !== "later"
+);
+
+const innerCommittedMaxRawR =
+  innerCommittedNodes.length === 0 ? 0 : Math.max(...innerCommittedNodes.map(rawDotR));
+
+// Outer band nodes (only used when there is at least one uncommitted)
+const outerBandNodes = hasUncommitted
+  ? axisNodes.filter((n) => n.ringId === "later" || n.ringId === "uncommitted")
+  : [];
+
+const outerBandCount = outerBandNodes.length;
+
+// Start of the shared outer band: after the last Now/Next dot (or center if none)
+const outerBandStartR = innerCommittedMaxRawR;
+// End of the shared outer band is the outer edge
+const outerBandEndR = ringLater;
+
 
 return axisNodes.map((n) => {
   const ringList = nodesByRing[n.ringId] ?? [];
@@ -3408,26 +3524,47 @@ return axisNodes.map((n) => {
   const k = ringList.length;
 
   let baseR = ringRadiusById[n.ringId] ?? ringLater;
-  let offset = k <= 1 ? 0 : ((idx / (k - 1)) * 2 - 1) * spread; // default spread behavior
+let offset = k <= 1 ? 0 : ((idx / (k - 1)) * 2 - 1) * spread; // default spread behavior
 
-  if (n.ringId === "uncommitted") {
-    // Even spacing in the remaining band:
-    // r = start + (i+1) * (end-start)/(k+1)
-    const i = idx; // idx within uncommitted ring list
-    const gap =
-      uncommittedCount <= 0 ? 0 : (uncommittedEndR - uncommittedStartR) / (uncommittedCount + 1);
+// If there is ANY uncommitted node on this axis, Later + Uncommitted share the outer band.
+// That means Later should NOT pin to the edge; it should be spaced along with uncommitted.
+if (hasUncommitted && (n.ringId === "later" || n.ringId === "uncommitted")) {
+  // Preserve stable order by sequence (then label) within the outer band
+  const orderedOuter = outerBandNodes
+    .slice()
+    .sort((a, b) => a.sequence - b.sequence || a.label.localeCompare(b.label));
 
-    baseR = uncommittedStartR + (i + 1) * gap;
+  const i = orderedOuter.findIndex((x) => x.id === n.id);
+  const gap = outerBandCount <= 0 ? 0 : (outerBandEndR - outerBandStartR) / (outerBandCount + 1);
 
-    // No extra spread needed because spacing is already radial and even
-    offset = 0;
-  }
+  baseR = outerBandStartR + (i + 1) * gap;
+
+  // No spread needed because we already spaced them radially
+  offset = 0;
+} else if (n.ringId === "uncommitted") {
+  // Fallback (shouldn’t happen because hasUncommitted would be true),
+  // but keep safe behavior if logic changes later:
+  baseR = ringLater * 0.85;
+  offset = 0;
+}
 
 
   const rawR = baseR + offset;
 
   // Never allow dots to go outside the outer ring
-  const maxR = ringLater - 10; // small padding so it's clearly inside the circle
+  // Visual polish: if "Later" has exactly 1 node on this axis (and no uncommitted),
+// pull it slightly inside the shore.
+const SINGLE_LATER_INSET = 14;
+
+const laterList = nodesByRing["later"] ?? [];
+const hasUncommittedOnAxis = (nodesByRing["uncommitted"] ?? []).length > 0;
+
+const isSingleLater =
+  !hasUncommittedOnAxis && n.ringId === "later" && laterList.length === 1;
+
+// Outer clamp (keep dots inside ring)
+const maxR = ringLater - (isSingleLater ? SINGLE_LATER_INSET : 10);
+
   const r = Math.min(rawR, maxR);
 
 
