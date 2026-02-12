@@ -317,6 +317,15 @@ function BlobLayer(props: {
   // MUST mirror your dot positioning logic (spread affects "furthest dot")
   const spread = 18;
 
+  // Back-compat + normalization:
+  // - if rOverride <= ~1.5, treat as normalized (0..1 of ringLater)
+  // - else treat as legacy px
+  const overrideToPx = (n: NodeItem) => {
+    const v = n.rOverride;
+    if (v == null || !Number.isFinite(v)) return null;
+    return v <= 1.5 ? v * ringLater : v;
+  };
+
 const dotRadiusForNodeOnAxis = (axisNodesOrdered: NodeItem[], n: NodeItem) => {
   // Mirror the exact positioning rules used by the chart:
   // - Normal rings (now/next/later) use base ring radius + spread.
@@ -406,11 +415,13 @@ return rawDotR(n);
 
       return Math.max(
   ...eligible.map((n) => {
-    // ✅ Manual nudge override wins
-    if (n.rOverride != null && Number.isFinite(n.rOverride)) {
-      return Math.min(Math.max(0, n.rOverride), ringLater - 10);
+    // ✅ Manual nudge override wins (normalized-aware)
+    const oPx = overrideToPx(n);
+    if (oPx != null) {
+      return Math.min(Math.max(0, oPx), ringLater - 10);
     }
     return dotRadiusForNodeOnAxis(axisNodesOrdered, n);
+
   })
 );
 
@@ -1504,6 +1515,26 @@ const rotateAxesRight = () => {
   });
 };
 
+// Reset ALL nodes back to a “blank valuation” state
+const resetNodes = () => {
+  const ok = window.confirm(
+    "Reset all nodes?\n\nThis will:\n- Set every node to Uncommitted\n- Clear all manual nudges\n- Clear all wrap formatting\n\nThis cannot be undone (unless you revert via a saved snapshot)."
+  );
+  if (!ok) return;
+
+  setNodes((prev) =>
+    prev.map((n) => ({
+      ...n,
+      ringId: "uncommitted",
+      rOverride: null,
+      wrapWidth: null,
+    }))
+  );
+
+  setSelectedNodeId(null);
+};
+
+
 
 const addAxis = () => {
 
@@ -2530,7 +2561,16 @@ const deleteAxis = (axisId: string) => {
   >
     ↻ Rotate
   </button>
+
+  <button
+    className="smallBtn"
+    onClick={resetNodes}
+    title="Reset all nodes back to Uncommitted + clear nudges/wraps"
+  >
+    🧹 Reset nodes
+  </button>
 </div>
+
 
     </div>
 {/* Quick Start */}
@@ -3298,7 +3338,7 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
   // If you stay on same axis+ring, store manual radial position.
   // If you change axis or ring, clear it.
   const nextOverride =
-    axisChanged || ringChanged ? null : Math.min(Math.max(0, dropR), DRAG_MAX_R);
+    axisChanged || ringChanged ? null : dropR / ringLater; // normalized 0..1 of ringLater
 
   // Minimal sequence logic:
   // - If staying in same axis+ring, keep sequence.
@@ -3721,11 +3761,12 @@ const maxR = ringLater - (isSingleLater ? SINGLE_LATER_INSET : 10);
   let r = Math.min(rawR, maxR);
 
 // Manual nudge override (radial position)
+// Back-compat: if rOverride <= ~1.5, treat it as normalized (0..1 of ringLater). Otherwise treat as legacy px.
 if (n.rOverride != null && Number.isFinite(n.rOverride)) {
-  // keep inside the circle
-  r = Math.min(Math.max(0, n.rOverride), maxR);
+  const v = n.rOverride;
+  const px = v <= 1.5 ? v * ringLater : v; // normalized -> px
+  r = Math.min(Math.max(0, px), maxR);
 }
-
 
 
 
