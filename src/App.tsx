@@ -21,7 +21,9 @@ type NodeItem = {
   ringId: string;
   sequence: number;
   wrapWidth?: number | null; // optional per-node label wrap (px)
+  rOverride?: number | null; // optional manual radial position (px from center)
 };
+
 
 
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -402,7 +404,16 @@ return rawDotR(n);
       // IMPORTANT: if there are no eligible nodes on this axis, keep it at center
       if (eligible.length === 0) return 0;
 
-      return Math.max(...eligible.map((n) => dotRadiusForNodeOnAxis(axisNodesOrdered, n)));
+      return Math.max(
+  ...eligible.map((n) => {
+    // ✅ Manual nudge override wins
+    if (n.rOverride != null && Number.isFinite(n.rOverride)) {
+      return Math.min(Math.max(0, n.rOverride), ringLater - 10);
+    }
+    return dotRadiusForNodeOnAxis(axisNodesOrdered, n);
+  })
+);
+
     });
   };
 
@@ -2308,12 +2319,13 @@ const deleteAxis = (axisId: string) => {
                                   <input
                                     value={n.label}
                                     onChange={(e) =>
-                                      setNodes((prev) =>
-                                        prev.map((x) =>
-                                          x.id === n.id ? { ...x, label: e.target.value } : x
-                                        )
-                                      )
-                                    }
+  setNodes((prev) =>
+    prev.map((x) =>
+      x.id === n.id ? { ...x, ringId: e.target.value, rOverride: null } : x
+    )
+  )
+}
+
                                   />
                                 </div>
 
@@ -3244,19 +3256,24 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
   const finalPos = dragPos;
   setDragPos(null);
 
-  // If it was just a click (no movement), do your normal click behavior (select + scroll)
+  // If it was just a click (no movement), do your normal click behavior (scroll only).
+  // Selection is handled in onPointerDown (and can toggle off), so we must NOT re-select here.
   if (!nodeId) return;
   if (!dragged) {
     const n = nodes.find((x) => x.id === nodeId);
     if (n) {
-      expandAxis(n.axisId);
-      setSelectedNodeId(n.id);
-      const el = nodeRowRefs.current[n.id];
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Only expand + scroll if the node is still selected
+      // (prevents expanding/scrolling when user is deselecting)
+      if (selectedNodeId === n.id) {
+        expandAxis(n.axisId);
+        const el = nodeRowRefs.current[n.id];
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
     }
     didDragRef.current = false;
     return;
   }
+
 
   // If it was a drag, snap + update node (no click scroll spam)
   if (!finalPos) {
@@ -3272,29 +3289,41 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
   const nextRingId = snapRingIdFromRadius(nextAxisId, dropR);
 
   setNodes((prev) => {
-    const moving = prev.find((x) => x.id === nodeId);
-    if (!moving) return prev;
+  const moving = prev.find((x) => x.id === nodeId);
+  if (!moving) return prev;
 
-    const axisChanged = moving.axisId !== nextAxisId;
-    const ringChanged = moving.ringId !== nextRingId;
+  const axisChanged = moving.axisId !== nextAxisId;
+  const ringChanged = moving.ringId !== nextRingId;
 
-    // Minimal sequence logic:
-    // - If staying in same axis+ring, keep sequence.
-    // - If moving axis or ring, append to end of that axis+ring (won’t wreck ordering).
-    let nextSeq = moving.sequence;
-    if (axisChanged || ringChanged) {
-      const maxSeq = prev
-        .filter((x) => x.axisId === nextAxisId && x.ringId === nextRingId)
-        .reduce((m, x) => Math.max(m, x.sequence), 0);
-      nextSeq = maxSeq + 1;
-    }
+  // If you stay on same axis+ring, store manual radial position.
+  // If you change axis or ring, clear it.
+  const nextOverride =
+    axisChanged || ringChanged ? null : Math.min(Math.max(0, dropR), DRAG_MAX_R);
 
-    return prev.map((x) =>
-      x.id === nodeId
-        ? { ...x, axisId: nextAxisId, ringId: nextRingId, sequence: nextSeq }
-        : x
-    );
-  });
+  // Minimal sequence logic:
+  // - If staying in same axis+ring, keep sequence.
+  // - If moving axis or ring, append to end of that axis+ring.
+  let nextSeq = moving.sequence;
+  if (axisChanged || ringChanged) {
+    const maxSeq = prev
+      .filter((x) => x.axisId === nextAxisId && x.ringId === nextRingId)
+      .reduce((m, x) => Math.max(m, x.sequence), 0);
+    nextSeq = maxSeq + 1;
+  }
+
+  return prev.map((x) =>
+    x.id === nodeId
+      ? {
+          ...x,
+          axisId: nextAxisId,
+          ringId: nextRingId,
+          sequence: nextSeq,
+          rOverride: nextOverride,
+        }
+      : x
+  );
+});
+
 
   // Selection should follow the dragged node (but don’t scroll)
   expandAxis(nextAxisId);
@@ -3689,7 +3718,13 @@ const isSingleLater =
 // Outer clamp (keep dots inside ring)
 const maxR = ringLater - (isSingleLater ? SINGLE_LATER_INSET : 10);
 
-  const r = Math.min(rawR, maxR);
+  let r = Math.min(rawR, maxR);
+
+// Manual nudge override (radial position)
+if (n.rOverride != null && Number.isFinite(n.rOverride)) {
+  // keep inside the circle
+  r = Math.min(Math.max(0, n.rOverride), maxR);
+}
 
 
 
@@ -3732,9 +3767,13 @@ const isSelected = selectedNodeId === n.id;
 
   lastPointerDownRef.current = { id: n.id, t: now };
 
-  // Normal behavior: select + allow dragging
-  expandAxis(n.axisId);
-  setSelectedNodeId(n.id);
+  // Normal behavior: toggle select + allow dragging
+  setSelectedNodeId((prev) => {
+    const next = prev === n.id ? null : n.id;
+    if (next) expandAxis(n.axisId);
+    return next;
+  });
+
 
   activePointerIdRef.current = e.pointerId;
   dragStartClientRef.current = { x: e.clientX, y: e.clientY };
