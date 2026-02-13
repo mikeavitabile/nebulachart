@@ -716,6 +716,40 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const [showNowBlob, setShowNowBlob] = useState(true);
   const [showNextBlob, setShowNextBlob] = useState(true);
   const [showLaterBlob, setShowLaterBlob] = useState(true);
+
+  // --- Ring toggle button styling ---
+  const RING_COLORS: Record<string, string> = {
+    now: "#5beebb",   // light green
+    next: "#16cc99",  // medium green
+    later: "#159d6d", // darker green
+  };
+
+  const ringToggleBtnStyle = (on: boolean, color: string) => ({
+    padding: "6px 10px",
+    borderRadius: 999,
+    border: `1px solid ${color}`,
+    background: on ? color : "rgba(0,0,0,0.04)",
+    color: "#111",
+    fontSize: 13,
+    fontWeight: 650,
+    cursor: "pointer",
+    lineHeight: 1,
+    boxShadow: on ? "0 6px 18px rgba(0,0,0,0.10)" : "none",
+  });
+
+  const ringMasterBtnStyle = (on: boolean) => ({
+    padding: "6px 10px",
+    borderRadius: 999,
+    border: "1px solid #111",
+    background: on ? "#111" : "#fff",
+    color: on ? "#fff" : "#111",
+    fontSize: 13,
+    fontWeight: 800,
+    cursor: "pointer",
+    lineHeight: 1,
+    boxShadow: on ? "0 6px 18px rgba(0,0,0,0.10)" : "none",
+  });
+
   const [babySpin, setBabySpin] = useState(0);
   const [snapshots, setSnapshots] = useState<BabyIslandSnapshotV1[]>([]);
   const [activeSnapshotId, setActiveSnapshotId] = useState<string | null>(null);
@@ -3181,94 +3215,105 @@ const deleteAxis = (axisId: string) => {
 >
 
 
-                  <label className="viewToggle" style={{ fontWeight: 800, letterSpacing: 0.2 }}>
-                    <input
-                      type="checkbox"
-                      checked={showNowBlob && showNextBlob && showLaterBlob}
-                      onChange={(e) => {
-                        const next = e.target.checked;
-                        setShowNowBlob(next);
-                        setShowNextBlob(next);
-                        setShowLaterBlob(next);
-                      }}
-                    />
-                    <span>Rings</span>
-                  </label>
+                  {(() => {
+                    const allOn = showNowBlob && showNextBlob && showLaterBlob;
 
-<label className="viewToggle">
-  <input
-    type="checkbox"
-    checked={showNowBlob}
-    onChange={(e) => {
-      const next = e.target.checked;
-      setShowNowBlob(next);
-      if (!next) {
-        // If Now turns off, Next/Later can't remain on (cumulative)
-        setShowNextBlob(false);
-        setShowLaterBlob(false);
-      }
-    }}
-  />
-  <span>{rings.find((r) => r.id === "now")?.label ?? "Now"}</span>
-</label>
+                    const nowLabel = rings.find((r) => r.id === "now")?.label ?? "Now";
+                    const nextLabel = rings.find((r) => r.id === "next")?.label ?? "Next";
+                    const laterLabel = rings.find((r) => r.id === "later")?.label ?? "Later";
 
+                    return (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          style={ringMasterBtnStyle(allOn)}
+                          onClick={() => {
+                            const next = !allOn;
+                            setShowNowBlob(next);
+                            setShowNextBlob(next);
+                            setShowLaterBlob(next);
+                          }}
+                          title="Toggle all rings"
+                        >
+                          Rings
+                        </button>
 
+                        <button
+                          type="button"
+                          style={ringToggleBtnStyle(showNowBlob, RING_COLORS.now)}
+                          onClick={() => {
+                            const next = !showNowBlob;
+                            setShowNowBlob(next);
+                            if (!next) {
+                              // If Now turns off, Next/Later can't remain on (cumulative)
+                              setShowNextBlob(false);
+                              setShowLaterBlob(false);
+                            }
+                          }}
+                          title="Toggle Now ring"
+                        >
+                          {nowLabel}
+                        </button>
 
+                        <button
+                          type="button"
+                          style={ringToggleBtnStyle(showNextBlob, RING_COLORS.next)}
+                          onClick={() => {
+                            const next = !showNextBlob;
+                            setShowNextBlob(next);
+                            if (next) {
+                              setShowNowBlob(true);
+                            } else {
+                              setShowLaterBlob(false);
+                            }
+                          }}
+                          title="Toggle Next ring"
+                        >
+                          {nextLabel}
+                        </button>
 
-
-                  <label className="viewToggle">
-                    <input
-                      type="checkbox"
-                      checked={showNextBlob}
-                      onChange={(e) => {
-                        const next = e.target.checked;
-                        setShowNextBlob(next);
-                        if (next) {
-                          setShowNowBlob(true);
-                        } else {
-                          setShowLaterBlob(false);
-                        }
-                      }}
-                    />
-                    <span>{rings.find((r) => r.id === "next")?.label ?? "Next"}</span>
-                  </label>
-
-                  <label className="viewToggle">
-                    <input
-                      type="checkbox"
-                      checked={showLaterBlob}
-                      onChange={(e) => {
-                        const next = e.target.checked;
-                        setShowLaterBlob(next);
-                        if (next) {
-                          setShowNextBlob(true);
-                          setShowNowBlob(true);
-                        }
-                      }}
-                    />
-                    <span>{rings.find((r) => r.id === "later")?.label ?? "Later"}</span>
-                  </label>
+                        <button
+                          type="button"
+                          style={ringToggleBtnStyle(showLaterBlob, RING_COLORS.later)}
+                          onClick={() => {
+                            const next = !showLaterBlob;
+                            setShowLaterBlob(next);
+                            if (next) {
+                              setShowNextBlob(true);
+                              setShowNowBlob(true);
+                            }
+                          }}
+                          title="Toggle Later ring"
+                        >
+                          {laterLabel}
+                        </button>
+                      </div>
+                    );
+                  })()}
 
                   {/* spacer removed in collapsed mode */}
 
-                  <label className="viewToggle" style={{ fontWeight: 800, letterSpacing: 0.2 }}>
-                    <input
-                      type="checkbox"
-                      checked={showNodeLabels}
-                      onChange={(e) => setShowNodeLabels(e.target.checked)}
-                    />
-                    <span>Labels</span>
-                  </label>
-                  
 
-<label className="viewToggle">
-  <input
-    type="checkbox"
-    checked={showNodes}
-    onChange={(e) => setShowNodes(e.target.checked)}
-  />
-  <span>Nodes</span>
-</label>
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      style={ringMasterBtnStyle(showNodeLabels)}
+                      onClick={() => setShowNodeLabels((v) => !v)}
+                      title="Toggle labels"
+                    >
+                      Labels
+                    </button>
+
+                    <button
+                      type="button"
+                      style={ringMasterBtnStyle(showNodes)}
+                      onClick={() => setShowNodes((v) => !v)}
+                      title="Toggle nodes"
+                    >
+                      Nodes
+                    </button>
+                  </div>
+
 
 
                             </div>
@@ -3295,89 +3340,104 @@ const deleteAxis = (axisId: string) => {
               marginTop: 8,
             }}
           >
-            {/* Rings master */}
-            <label className="viewToggle" style={{ fontWeight: 800, letterSpacing: 0.2 }}>
-              <input
-                type="checkbox"
-                checked={showNowBlob && showNextBlob && showLaterBlob}
-                onChange={(e) => {
-                  const next = e.target.checked;
-                  setShowNowBlob(next);
-                  setShowNextBlob(next);
-                  setShowLaterBlob(next);
-                }}
-              />
-              <span>Rings</span>
-            </label>
+            {(() => {
+              const allOn = showNowBlob && showNextBlob && showLaterBlob;
 
-            <label className="viewToggle">
-              <input
-                type="checkbox"
-                checked={showNowBlob}
-                onChange={(e) => {
-                  const next = e.target.checked;
-                  setShowNowBlob(next);
-                  if (!next) {
-                    setShowNextBlob(false);
-                    setShowLaterBlob(false);
-                  }
-                }}
-              />
-              <span>{rings.find((r) => r.id === "now")?.label ?? "Now"}</span>
-            </label>
+              const nowLabel = rings.find((r) => r.id === "now")?.label ?? "Now";
+              const nextLabel = rings.find((r) => r.id === "next")?.label ?? "Next";
+              const laterLabel = rings.find((r) => r.id === "later")?.label ?? "Later";
 
-            <label className="viewToggle">
-              <input
-                type="checkbox"
-                checked={showNextBlob}
-                onChange={(e) => {
-                  const next = e.target.checked;
-                  setShowNextBlob(next);
-                  if (next) {
-                    setShowNowBlob(true);
-                  } else {
-                    setShowLaterBlob(false);
-                  }
-                }}
-              />
-              <span>{rings.find((r) => r.id === "next")?.label ?? "Next"}</span>
-            </label>
+              return (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <button
+                    type="button"
+                    style={ringMasterBtnStyle(allOn)}
+                    onClick={() => {
+                      const next = !allOn;
+                      setShowNowBlob(next);
+                      setShowNextBlob(next);
+                      setShowLaterBlob(next);
+                    }}
+                    title="Toggle all rings"
+                  >
+                    Rings
+                  </button>
 
-            <label className="viewToggle">
-              <input
-                type="checkbox"
-                checked={showLaterBlob}
-                onChange={(e) => {
-                  const next = e.target.checked;
-                  setShowLaterBlob(next);
-                  if (next) {
-                    setShowNextBlob(true);
-                    setShowNowBlob(true);
-                  }
-                }}
-              />
-              <span>{rings.find((r) => r.id === "later")?.label ?? "Later"}</span>
-            </label>
+                  <button
+                    type="button"
+                    style={ringToggleBtnStyle(showNowBlob, RING_COLORS.now)}
+                    onClick={() => {
+                      const next = !showNowBlob;
+                      setShowNowBlob(next);
+                      if (!next) {
+                        setShowNextBlob(false);
+                        setShowLaterBlob(false);
+                      }
+                    }}
+                    title="Toggle Now ring"
+                  >
+                    {nowLabel}
+                  </button>
 
-            <span style={{ width: 14 }} />
+                  <button
+                    type="button"
+                    style={ringToggleBtnStyle(showNextBlob, RING_COLORS.next)}
+                    onClick={() => {
+                      const next = !showNextBlob;
+                      setShowNextBlob(next);
+                      if (next) {
+                        setShowNowBlob(true);
+                      } else {
+                        setShowLaterBlob(false);
+                      }
+                    }}
+                    title="Toggle Next ring"
+                  >
+                    {nextLabel}
+                  </button>
 
-            <label className="viewToggle" style={{ fontWeight: 800, letterSpacing: 0.2 }}>
-              <input
-                type="checkbox"
-                checked={showNodeLabels}
-                onChange={(e) => setShowNodeLabels(e.target.checked)}
-              />
-              <span>Labels</span>
-            </label>
+                  <button
+                    type="button"
+                    style={ringToggleBtnStyle(showLaterBlob, RING_COLORS.later)}
+                    onClick={() => {
+                      const next = !showLaterBlob;
+                      setShowLaterBlob(next);
+                      if (next) {
+                        setShowNextBlob(true);
+                        setShowNowBlob(true);
+                      }
+                    }}
+                    title="Toggle Later ring"
+                  >
+                    {laterLabel}
+                  </button>
 
-            <label className="viewToggle">
-              <input
-                type="checkbox"
-                checked={showNodes}
-                onChange={(e) => setShowNodes(e.target.checked)}
-              />
-              <span>Nodes</span>
-            </label>
+                  <span style={{ width: 6 }} />
+                </div>
+              );
+            })()}
+
+
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                style={ringMasterBtnStyle(showNodeLabels)}
+                onClick={() => setShowNodeLabels((v) => !v)}
+                title="Toggle labels"
+              >
+                Labels
+              </button>
+
+              <button
+                type="button"
+                style={ringMasterBtnStyle(showNodes)}
+                onClick={() => setShowNodes((v) => !v)}
+                title="Toggle nodes"
+              >
+                Nodes
+              </button>
+            </div>
+
           </div>
         </div>
       </div>
