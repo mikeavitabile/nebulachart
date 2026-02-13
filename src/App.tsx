@@ -1920,7 +1920,7 @@ const deleteAxis = (axisId: string) => {
         onClick={() => setLeftCollapsed((v) => !v)}
         title={leftCollapsed ? "Show the left panel" : "Collapse the left panel"}
       >
-        {leftCollapsed ? "Show panel" : "Collapse panel"}
+        {leftCollapsed ? "Build Mode" : "Presentation Mode"}
       </button>
     </div>
   </header>
@@ -3157,7 +3157,7 @@ const deleteAxis = (axisId: string) => {
             onClick={() => setLeftCollapsed(false)}
             title="Show the left panel"
           >
-            Show panel
+            Build mode
           </button>
 
           
