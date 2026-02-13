@@ -24,6 +24,27 @@ type NodeItem = {
   rOverride?: number | null; // optional manual radial position (px from center)
 };
 
+// Built-in snapshot templates (module-scope so they’re safe to reference)
+const BUILTIN_BLANK_SNAPSHOT: BabyIslandSnapshotV1 = {
+  id: "builtin-blank",
+  name: "Blank Island",
+  createdAt: 0,
+  updatedAt: 0,
+  state: {
+    v: 1,
+    savedAt: 0,
+    title: "Untitled Strategy",
+    subtitle: "",
+    axes: [],
+    rings: [
+      { id: "now", label: "Now" },
+      { id: "next", label: "Next" },
+      { id: "later", label: "Later" },
+      { id: "uncommitted", label: "Uncommitted" },
+    ],
+    nodes: [],
+  },
+};
 
 
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -129,6 +150,33 @@ function migrateSnapshotsAddUncommitted(existing: BabyIslandSnapshotV1[]) {
 function writeSnapshots(next: BabyIslandSnapshotV1[]) {
   localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(next));
 }
+
+// Ensure a Blank Island snapshot exists (and return updated list)
+function ensureBlankSnapshot(existing: BabyIslandSnapshotV1[]) {
+  const hasBlank = existing.some((s) => s.id === "builtin-blank");
+  if (hasBlank) return existing;
+
+  const now = Date.now();
+  const blank: BabyIslandSnapshotV1 = {
+    id: "builtin-blank",
+    name: "Blank Island",
+    createdAt: now,
+    updatedAt: now,
+    state: {
+      v: 1,
+      savedAt: now,
+      title: "Untitled Strategy",
+      subtitle: "",
+      axes: BLANK_AXES,
+      rings: DEFAULT_RINGS,
+      nodes: BLANK_NODES,
+    },
+  };
+
+  // Put blank FIRST so it becomes the default
+  return [blank, ...existing];
+}
+
 
 // -------------------- Export helpers --------------------
 function slugifyFilename(input: string) {
@@ -1279,88 +1327,333 @@ const resetWorkingStateBlank = () => {
   setLastSavedAt(null);
 };
 
-
-  // --- One-time init: load snapshots, import legacy if present, pick active via URL/localStorage ---
-  useLayoutEffect(() => {
-    try {
-      let existing = readSnapshots();
-
-      // Import legacy single-save once, if snapshots are empty
-      if (existing.length === 0) {
-        const legacy = safeParseJSON<BabyIslandSavedStateV1>(
-          localStorage.getItem(LEGACY_STORAGE_KEY)
-        );
-        if (legacy && legacy.v === 1) {
-          const now = Date.now();
-          const imported: BabyIslandSnapshotV1 = {
-            id: uid(),
-            name: "Imported",
-            createdAt: now,
-            updatedAt: now,
-            state: legacy,
-          };
-          existing.unshift(imported);
-
-          try {
-            writeSnapshots(existing);
-            localStorage.removeItem(LEGACY_STORAGE_KEY);
-          } catch {}
-        }
-      }
-
-      // ✅ migrate old snapshots so rings include "uncommitted"
-const migrated = migrateSnapshotsAddUncommitted(existing);
-existing = migrated.next;
-
-if (migrated.changed) {
-  try {
-    writeSnapshots(existing);
-  } catch {}
-}
-
-setSnapshots(existing);
+// -------------------- Built-in Snapshots --------------------
 
 
-      const fromUrl = getStrategyIdFromUrl();
-      const fromLocal = localStorage.getItem(ACTIVE_SNAPSHOT_KEY);
-      const preferredId = fromUrl || fromLocal;
-
-      const preferred = preferredId ? existing.find((s) => s.id === preferredId) : null;
-      const initial = preferred || existing[0] || null;
-
-      if (initial) {
-        setActiveSnapshotId(initial.id);
-        try {
-          localStorage.setItem(ACTIVE_SNAPSHOT_KEY, initial.id);
-        } catch {}
-        setStrategyIdInUrl(initial.id);
-        loadSnapshotIntoState(initial);
-      } else {
-        // No snapshots exist yet: create the first one from defaults
-        // (but only after state hooks exist—this runs after first render; safe)
-        // We'll create it lazily after initial state is available:
-        // - we set working state to defaults (already)
-        // - then createSnapshot in the next frame
-        requestAnimationFrame(() => {
-  const blank: BabyIslandSavedStateV1 = {
+// Example island
+const BUILTIN_EXAMPLE_SNAPSHOT: BabyIslandSnapshotV1 = {
+  id: "builtin-vision-workshop-example",
+  name: "Workshop Example",
+  createdAt: 1771006683761,
+  updatedAt: 1771006683761,
+  state: {
     v: 1,
-    savedAt: Date.now(),
-    title: "Your First Strategy",
-    subtitle: "Workshop Edition",
-    axes: BLANK_AXES,       // or BLANK_AXES if you truly want no axes
+    savedAt: 1771006683761,
+    title: "Workshop Example",
+    subtitle: "Version 1",
+    axes: [
+      {
+        id: "axis-uldb3kn",
+        label: "Effortless Interaction",
+        northStar:
+          "The product is built to listen. It becomes a trusted companion by listening, responding, and adapting to what you want in the moment, replacing static navigation with ongoing dialogue.",
+      },
+      {
+        id: "axis-nau02ev",
+        label: "Adaptive Expression",
+        northStar:
+          "The product feels uniquely yours. The experience evolves visually and functionally to reflect who you are, what you love, and how you engage.",
+      },
+      {
+        id: "axis-a3f6d9a",
+        label: "Customization",
+        northStar:
+          "You shape your product experience. From powerful controls to deeper customization to subscription flexibility, the product gives users meaningful agency so that the experience works the way they want it to.",
+      },
+      {
+        id: "axis-dg24lcs",
+        label: "Beyond Video",
+        northStar:
+          "Stories don’t end when the credits roll. The product transforms storytelling into living worlds that audiences can explore, extend, and return to.",
+      },
+      {
+        id: "axis-9j05408",
+        label: "Fandom",
+        northStar:
+          "The product is built for a thousand niches, not one average user. Every user unlocks power in their own way through features and experiences designed to go deep, not wide.",
+      },
+      {
+        id: "axis-i8xea5h",
+        label: "Cross-Functional",
+        northStar:
+          "The product is the front door to the broader company. It connects audiences to merchandise, events, and experiences outside of the home.",
+      },
+      {
+        id: "axis-cx3a5mf",
+        label: "Quality",
+        northStar:
+          "The product is reliable, consistent, and modern. It works as expected, and it impresses with cutting edge technology atop a rock-solid foundation.",
+      },
+    ],
     rings: DEFAULT_RINGS,
-    nodes: [],                // 👈 blank nodes
-  };
-
-  createSnapshot("Your First Island", true, blank);
-});
-
+    nodes: [
+      {
+        "id": "wlkrczh",
+        "label": "Audio experiences",
+        "axisId": "axis-dg24lcs",
+        "ringId": "now",
+        "sequence": 2,
+        "wrapWidth": 134,
+        "rOverride": 131.00196608079077
+      },
+      {
+        "id": "h5sr8i5",
+        "label": "Interactive storytelling",
+        "axisId": "axis-dg24lcs",
+        "ringId": "next",
+        "sequence": 3,
+        "rOverride": 179.8127569966473,
+        "wrapWidth": 173
+      },
+      {
+        "id": "1h5xf2p",
+        "label": "Put yourself in a scene",
+        "axisId": "axis-dg24lcs",
+        "ringId": "uncommitted",
+        "sequence": 4,
+        "wrapWidth": 173,
+        "rOverride": null
+      },
+      {
+        "id": "5q9rj1j",
+        "label": "Conversational UX",
+        "axisId": "axis-uldb3kn",
+        "ringId": "later",
+        "sequence": 3
+      },
+      {
+        "id": "uxf56i4",
+        "label": "Advanced filtering",
+        "axisId": "axis-uldb3kn",
+        "ringId": "next",
+        "sequence": 2,
+        "wrapWidth": 130,
+        "rOverride": 0.7333355095938641
+      },
+      {
+        "id": "qyveedi",
+        "label": "Personalized user education",
+        "axisId": "axis-nau02ev",
+        "ringId": "uncommitted",
+        "sequence": 3,
+        "wrapWidth": 195
+      },
+      {
+        "id": "ltptxbj",
+        "label": "Cohort-specific features",
+        "axisId": "axis-nau02ev",
+        "ringId": "now",
+        "sequence": 1,
+        "wrapWidth": 180,
+        "rOverride": 0.45016174242430756
+      },
+      {
+        "id": "43ijjmd",
+        "label": "Reminders",
+        "axisId": "axis-a3f6d9a",
+        "ringId": "now",
+        "sequence": 2,
+        "rOverride": 0.6032282507792049
+      },
+      {
+        "id": "kymz7zw",
+        "label": "Rewards",
+        "axisId": "axis-9j05408",
+        "ringId": "uncommitted",
+        "sequence": 3
+      },
+      {
+        "id": "260mc7n",
+        "label": "Fandom 101",
+        "axisId": "axis-9j05408",
+        "ringId": "now",
+        "sequence": 1,
+        "rOverride": 112.59034360529706
+      },
+      {
+        "id": "bxs1kos",
+        "label": "Easter eggs",
+        "axisId": "axis-9j05408",
+        "ringId": "next",
+        "sequence": 2
+      },
+      {
+        "id": "jdbovrg",
+        "label": "Cart integration",
+        "axisId": "axis-i8xea5h",
+        "ringId": "uncommitted",
+        "sequence": 3,
+        "wrapWidth": 125,
+        "rOverride": 0.8909441295419214
+      },
+      {
+        "id": "psjfovt",
+        "label": "Routines",
+        "axisId": "axis-nau02ev",
+        "ringId": "next",
+        "sequence": 2,
+        "rOverride": 0.674268568913468
+      },
+      {
+        "id": "2kmpi5d",
+        "label": "Tuning",
+        "axisId": "axis-a3f6d9a",
+        "ringId": "later",
+        "sequence": 3,
+        "rOverride": 0.8576322445038916
+      },
+      {
+        "id": "2wkja25",
+        "label": "User interests",
+        "axisId": "axis-a3f6d9a",
+        "ringId": "now",
+        "sequence": 1,
+        "wrapWidth": 139,
+        "rOverride": 0.24148468815711166
+      },
+      {
+        "id": "c53i4ui",
+        "label": "Gen AI fan fiction",
+        "axisId": "axis-dg24lcs",
+        "ringId": "uncommitted",
+        "sequence": 5,
+        "rOverride": 249.5933838346448
+      },
+      {
+        "id": "48tybws",
+        "label": "Discovery prompts",
+        "axisId": "axis-uldb3kn",
+        "ringId": "now",
+        "sequence": 1,
+        "wrapWidth": 97,
+        "rOverride": 109.0218808727737
+      },
+      {
+        "id": "57lblx8",
+        "label": "Shop tab v2",
+        "axisId": "axis-i8xea5h",
+        "ringId": "uncommitted",
+        "sequence": 1,
+        "rOverride": 0.50083690602418,
+        "wrapWidth": 88
+      },
+      {
+        "id": "e9ioiz3",
+        "label": "Improve subtitles",
+        "axisId": "axis-cx3a5mf",
+        "ringId": "now",
+        "sequence": 1,
+        "wrapWidth": 76,
+        "rOverride": 0.4145904806129118
+      },
+      {
+        "id": "m5zui8p",
+        "label": "Faster startup",
+        "axisId": "axis-cx3a5mf",
+        "ringId": "later",
+        "sequence": 2,
+        "wrapWidth": 105,
+        "rOverride": 0.9053481214958646
       }
-    } catch (e) {
-      console.warn("Init failed:", e);
+    ],
+  },
+};
+
+
+
+// --- One-time init: load snapshots, import legacy if present, pick active via URL/localStorage ---
+useLayoutEffect(() => {
+  try {
+    let existing = readSnapshots();
+
+    // 1) Import legacy single-save ONCE (only if snapshots are empty)
+    if (existing.length === 0) {
+      const legacy = safeParseJSON<BabyIslandSavedStateV1>(localStorage.getItem(LEGACY_STORAGE_KEY));
+      if (legacy && legacy.v === 1) {
+        const now = Date.now();
+        const imported: BabyIslandSnapshotV1 = {
+          id: uid(),
+          name: "Imported",
+          createdAt: now,
+          updatedAt: now,
+          state: legacy,
+        };
+        existing = [imported];
+
+        try {
+          writeSnapshots(existing);
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+        } catch {}
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+    // 2) If still empty, seed Blank + Example (blank first)
+    if (existing.length === 0) {
+      const now = Date.now();
+
+      const blank: BabyIslandSnapshotV1 = {
+        ...BUILTIN_BLANK_SNAPSHOT,
+        createdAt: now,
+        updatedAt: now,
+        state: {
+          ...BUILTIN_BLANK_SNAPSHOT.state,
+          savedAt: now,
+          // Use your real in-app rings (includes uncommitted)
+          rings: DEFAULT_RINGS,
+          axes: BLANK_AXES,
+          nodes: BLANK_NODES,
+        },
+      };
+
+      const example: BabyIslandSnapshotV1 = {
+        ...BUILTIN_EXAMPLE_SNAPSHOT,
+        // keep example timestamps as-is (or refresh if you want)
+      };
+
+      existing = [blank, example];
+
+      try {
+        writeSnapshots(existing);
+      } catch {}
+    }
+
+    // 3) Migrate any older snapshots to ensure "uncommitted" ring exists
+    const migrated = migrateSnapshotsAddUncommitted(existing);
+    existing = migrated.next;
+    if (migrated.changed) {
+      try {
+        writeSnapshots(existing);
+      } catch {}
+    }
+
+    setSnapshots(existing);
+
+    // 4) Pick active snapshot via URL > localStorage > first item
+    const fromUrl = getStrategyIdFromUrl();
+    const fromLocal = localStorage.getItem(ACTIVE_SNAPSHOT_KEY);
+    const preferredId = fromUrl || fromLocal;
+
+    const preferred = preferredId ? existing.find((s) => s.id === preferredId) : null;
+    const initial = preferred || existing[0] || null;
+
+    if (initial) {
+      setActiveSnapshotId(initial.id);
+      try {
+        localStorage.setItem(ACTIVE_SNAPSHOT_KEY, initial.id);
+      } catch {}
+      setStrategyIdInUrl(initial.id);
+      loadSnapshotIntoState(initial);
+    }
+
+    // 5) Mark hydration complete so autosave can run safely
+    hasHydratedRef.current = true;
+  } catch (e) {
+    console.warn("Init failed:", e);
+    hasHydratedRef.current = true;
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
 
 
   // ----- Chart constants (legacy / harmless even though SVG now sizes dynamically) -----
@@ -2348,16 +2641,16 @@ const deleteAxis = (axisId: string) => {
                                 <div className="nodeMeta">
                                   <div className="nodeLabel">Node</div>
                                   <input
-                                    value={n.label}
-                                    onChange={(e) =>
-  setNodes((prev) =>
-    prev.map((x) =>
-      x.id === n.id ? { ...x, ringId: e.target.value, rOverride: null } : x
+  value={n.label}
+  onChange={(e) =>
+    setNodes((prev) =>
+      prev.map((x) =>
+        x.id === n.id ? { ...x, label: e.target.value } : x
+      )
     )
-  )
-}
+  }
+/>
 
-                                  />
                                 </div>
 
 <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6, flexWrap: "wrap" }}>
