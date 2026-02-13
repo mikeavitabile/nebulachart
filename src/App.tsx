@@ -3297,7 +3297,7 @@ const deleteAxis = (axisId: string) => {
                                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button
                       type="button"
-                      style={ringMasterBtnStyle(showNodeLabels)}
+                      style={ringMasterBtnStyle(showNodes && showNodeLabels)}
                       onClick={() => setShowNodeLabels((v) => !v)}
                       title="Toggle labels"
                     >
@@ -3307,11 +3307,18 @@ const deleteAxis = (axisId: string) => {
                     <button
                       type="button"
                       style={ringMasterBtnStyle(showNodes)}
-                      onClick={() => setShowNodes((v) => !v)}
+                      onClick={() =>
+                        setShowNodes((prev) => {
+                          const next = !prev;
+                          if (!next) setShowNodeLabels(false);
+                          return next;
+                        })
+                      }
                       title="Toggle nodes"
                     >
                       Nodes
                     </button>
+
                   </div>
 
 
@@ -3421,7 +3428,7 @@ const deleteAxis = (axisId: string) => {
                         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <button
                 type="button"
-                style={ringMasterBtnStyle(showNodeLabels)}
+                style={ringMasterBtnStyle(showNodes && showNodeLabels)}
                 onClick={() => setShowNodeLabels((v) => !v)}
                 title="Toggle labels"
               >
@@ -3431,11 +3438,18 @@ const deleteAxis = (axisId: string) => {
               <button
                 type="button"
                 style={ringMasterBtnStyle(showNodes)}
-                onClick={() => setShowNodes((v) => !v)}
+                onClick={() =>
+                  setShowNodes((prev) => {
+                    const next = !prev;
+                    if (!next) setShowNodeLabels(false);
+                    return next;
+                  })
+                }
                 title="Toggle nodes"
               >
                 Nodes
               </button>
+
             </div>
 
           </div>
