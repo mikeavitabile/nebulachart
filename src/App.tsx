@@ -109,7 +109,7 @@ type NodeItem = {
 // Built-in snapshot templates (module-scope so they’re safe to reference)
 const BUILTIN_BLANK_SNAPSHOT: BabyIslandSnapshotV1 = {
   id: "builtin-blank",
-  name: "Blank Island",
+  name: "Blank Nebula",
   createdAt: 0,
   updatedAt: 0,
   state: {
@@ -241,7 +241,7 @@ function ensureBlankSnapshot(existing: BabyIslandSnapshotV1[]) {
   const now = Date.now();
   const blank: BabyIslandSnapshotV1 = {
     id: "builtin-blank",
-    name: "Blank Island",
+    name: "Blank Nebula",
     createdAt: now,
     updatedAt: now,
     state: {
