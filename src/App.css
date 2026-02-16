@@ -15,7 +15,10 @@ body {
   margin: 0;
   overflow: hidden; /* panes scroll; page does not */
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #05050a;
+  color: rgba(245,247,255,0.92);
 }
+
 
 /* =========================
    App Layout
@@ -30,15 +33,18 @@ body {
 .header {
   height: 48px;
   padding: 0 16px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+  background: rgba(10, 10, 18, 0.55);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   gap: 12px;
   flex: 0 0 auto;
 }
 
+
 .muted {
-  color: #777;
+  color: rgba(245,247,255,0.58);
   font-size: 13px;
 }
 
@@ -55,11 +61,14 @@ body {
 
 /* Left pane */
 .leftPanel {
-  border-right: 1px solid #ddd;
+  border-right: 1px solid rgba(255,255,255,0.10);
+  background: rgba(10, 10, 18, 0.45);
+  backdrop-filter: blur(10px);
   padding: 16px;
   overflow: auto;
   min-height: 0;
 }
+
 
 /* Right pane */
 .rightPanel {
@@ -82,21 +91,25 @@ label {
   margin-bottom: 12px;
 }
 
-input, select {
+input, select, textarea {
   width: 100%;
   padding: 8px 10px;
   margin-top: 6px;
   border-radius: 10px;
-  border: 1px solid #ccc;
-  background: white;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(12, 12, 22, 0.55);
+  color: rgba(245,247,255,0.92);
   font-size: 13px;
   outline: none;
+  backdrop-filter: blur(10px);
 }
 
-input:focus, select:focus {
-  border-color: rgba(12, 231, 168, 0.9);
-  box-shadow: 0 0 0 4px rgba(12, 231, 168, 0.12);
+
+input:focus, select:focus, textarea:focus {
+  border-color: rgba(255, 79, 160, 0.60);
+  box-shadow: 0 0 0 4px rgba(157, 88, 255, 0.18);
 }
+
 
 /* Axis editor rows */
 .row {
@@ -148,11 +161,12 @@ input:focus, select:focus {
 
 .subtitle {
   font-size: 14px;
-  color: #666;
+  color: rgba(245,247,255,0.65);
   margin-bottom: 8px;
   font-weight: 500;
   letter-spacing: 0.2px;
 }
+
 
 
 .viewBar {
@@ -838,4 +852,13 @@ input:focus, select:focus {
 /* The stage itself should fill the column */
 .svgStage {
   height: 100%;
+}
+.nebula-core-pulse {
+  transform-origin: 50% 50%;
+  animation: nebulaPulse 10s ease-in-out infinite;
+}
+
+@keyframes nebulaPulse {
+  0%, 100% { transform: scale(0.985); opacity: 0.92; }
+  50%      { transform: scale(1.02);  opacity: 1.00; }
 }

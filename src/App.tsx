@@ -1,7 +1,89 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import babyImg from "./assets/baby-no-border.png";
+import babyImg from "./assets/star-2.png";
 import "./App.css";
 
+function GravitationalCore({
+  opacity = 0.35,        // overall strength
+  pulse = true,          // super slow "breathing"
+}: {
+  opacity?: number;
+  pulse?: boolean;
+}) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="xMidYMid slice"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+        opacity,
+        zIndex: 0,
+      }}
+    >
+      <defs>
+        {/* Soft, warm-to-cool core gradient */}
+        <radialGradient id="coreGlow" cx="50%" cy="50%" r="55%">
+          <stop offset="0%" stopColor="#ffb36b" stopOpacity="0.85" />
+          <stop offset="22%" stopColor="#ff6f7d" stopOpacity="0.55" />
+          <stop offset="48%" stopColor="#a86cff" stopOpacity="0.30" />
+          <stop offset="72%" stopColor="#3b1f8a" stopOpacity="0.14" />
+          <stop offset="100%" stopColor="#000000" stopOpacity="0" />
+        </radialGradient>
+
+        {/* Extra haze layer (very subtle) */}
+        <radialGradient id="outerHaze" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stopColor="#b97cff" stopOpacity="0.12" />
+          <stop offset="55%" stopColor="#5a2bd6" stopOpacity="0.07" />
+          <stop offset="100%" stopColor="#000000" stopOpacity="0" />
+        </radialGradient>
+
+        {/* Blur for softness */}
+        <filter id="softBlur" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="2.2" />
+        </filter>
+
+        {/* A tiny bit of texture so it feels "cosmic" not like a flat circle */}
+        <filter id="grain" x="-30%" y="-30%" width="160%" height="160%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" />
+          <feColorMatrix type="matrix" values="
+            1 0 0 0 0
+            0 1 0 0 0
+            0 0 1 0 0
+            0 0 0 0.10 0
+          " />
+          <feComposite operator="in" in2="SourceGraphic" />
+        </filter>
+      </defs>
+
+      {/* Outer haze */}
+      <circle cx="50" cy="50" r="46" fill="url(#outerHaze)" filter="url(#softBlur)" />
+
+      {/* Main core glow */}
+      <g filter="url(#softBlur)">
+        <circle
+          cx="50"
+          cy="50"
+          r="30"
+          fill="url(#coreGlow)"
+          className={pulse ? "nebula-core-pulse" : undefined}
+        />
+      </g>
+
+      {/* Subtle textured layer */}
+      <g opacity="0.55" filter="url(#grain)">
+        <circle cx="50" cy="50" r="30" fill="url(#coreGlow)" />
+      </g>
+
+      {/* Dark center mass (gives it gravity) */}
+      <circle cx="50" cy="50" r="10.5" fill="#05030a" opacity="0.55" />
+      <circle cx="50" cy="50" r="7.0"  fill="#000000" opacity="0.55" />
+    </svg>
+  );
+}
 
 type Axis = {
   id: string;
@@ -324,12 +406,13 @@ function BlobLayer(props: {
   if (rings[1]) ringRadiusById[rings[1].id] = ringNext;
   if (rings[2]) ringRadiusById[rings[2].id] = ringLater;
 
-  // Same styling you already had
+  // Nebula styling (Now → Next → Later): orange → pink → purple, soft + translucent
   const styles = [
-    { fill: "#5beebb", stroke: "#1FD6A2", strokeWidth: 1 },
-    { fill: "#16cc99", stroke: "#12C792", strokeWidth: 1 },
-    { fill: "#159d6d", stroke: "#0D7F59", strokeWidth: 1.5 },
+    { fill: "rgba(255, 149, 77, 0.28)", stroke: "rgba(255, 149, 77, 0.5)", strokeWidth: 1.15 }, // now
+    { fill: "rgba(255, 79, 160, 0.22)", stroke: "rgba(255, 79, 160, 0.5)", strokeWidth: 1.15 }, // next
+    { fill: "rgba(157, 88, 255, 0.18)", stroke: "rgba(157, 88, 255, 0.5)", strokeWidth: 1.25 }, // later
   ];
+
 
   // Smooth path helpers (Catmull-Rom -> cubic Bezier), closed loop
   const smoothClosedPathFromPoints = (pts: { x: number; y: number }[], tension = 1) => {
@@ -597,7 +680,7 @@ return rawDotR(n);
 export default function App() {
   // --- Defaults (used for Reset + as fallback) ---
   const DEFAULT_TITLE = "Example Product Strategy";
-  const DEFAULT_SUBTITLE = "Baby Island — Workshop Edition";
+  const DEFAULT_SUBTITLE = "Nebula — Workshop Edition";
 
   const DEFAULT_AXES: Axis[] = [
     {
@@ -719,36 +802,42 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
 
   // --- Ring toggle button styling ---
   const RING_COLORS: Record<string, string> = {
-    now: "#5beebb",   // light green
-    next: "#16cc99",  // medium green
-    later: "#159d6d", // darker green
+    now: "#FF954D",   // orange
+    next: "#FF4FA0",  // pink
+    later: "#9D58FF", // purple
   };
 
-  const ringToggleBtnStyle = (on: boolean, color: string) => ({
+
+    const ringToggleBtnStyle = (on: boolean, color: string) => ({
     padding: "6px 10px",
     borderRadius: 999,
-    border: `1px solid ${color}`,
-    background: on ? color : "rgba(0,0,0,0.04)",
-    color: "#111",
+    border: `1px solid ${on ? "rgba(255,255,255,0.18)" : `${color}`}`,
+    background: on ? `${color}22` : "rgba(255,255,255,0.06)", // translucent tint when on
+    color: "rgba(245,247,255,0.92)",
     fontSize: 13,
-    fontWeight: 650,
+    fontWeight: 700,
     cursor: "pointer",
     lineHeight: 1,
-    boxShadow: on ? "0 6px 18px rgba(0,0,0,0.10)" : "none",
+    boxShadow: on
+      ? `0 10px 26px ${color}33, 0 0 0 1px rgba(255,255,255,0.06) inset`
+      : "0 0 0 1px rgba(255,255,255,0.04) inset",
+    backdropFilter: "blur(6px)",
   });
 
   const ringMasterBtnStyle = (on: boolean) => ({
     padding: "6px 10px",
     borderRadius: 999,
-    border: "1px solid #111",
-    background: on ? "#111" : "#fff",
-    color: on ? "#fff" : "#111",
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: on ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.06)",
+    color: "rgba(245,247,255,0.92)",
     fontSize: 13,
-    fontWeight: 800,
+    fontWeight: 850,
     cursor: "pointer",
     lineHeight: 1,
-    boxShadow: on ? "0 6px 18px rgba(0,0,0,0.10)" : "none",
+    boxShadow: on ? "0 10px 26px rgba(0,0,0,0.35)" : "none",
+    backdropFilter: "blur(6px)",
   });
+
 
   const [babySpin, setBabySpin] = useState(0);
   const [snapshots, setSnapshots] = useState<BabyIslandSnapshotV1[]>([]);
@@ -775,7 +864,7 @@ const wrapResizeStartRef = useRef<{ x: number; w: number } | null>(null);
       const parsed = safeParseJSON<any>(raw);
 
       if (!parsed || parsed.format !== "baby-island-export-v1" || !parsed.state) {
-        window.alert("That file doesn’t look like a Baby Island export.");
+        window.alert("That file doesn’t look like a Nebula export.");
         return;
       }
 
@@ -926,7 +1015,7 @@ wrapWidth: null,
 
   const getActiveSnapshotName = () => {
     return (
-      (activeSnapshotId && snapshots.find((s) => s.id === activeSnapshotId)?.name) || "Baby Island"
+      (activeSnapshotId && snapshots.find((s) => s.id === activeSnapshotId)?.name) || "Nebula"
     );
   };
 
@@ -1935,15 +2024,15 @@ const deleteAxis = (axisId: string) => {
     <div className={`appShell ${leftCollapsed ? "noTopHeader" : ""}`}>
       {!leftCollapsed && (
   <header className="header">
-    <strong>babyisland.dev</strong>
-    <span className="muted">Workshop Tool v1</span>
+    <strong>Nebula</strong>
+    <span className="muted">A visual system for shaping strategy</span>
 
     <button
       type="button"
       className="smallBtn"
       onClick={() => setGuidebookOpen(true)}
       style={{ marginLeft: 10 }}
-      title="Open the Baby Island Guidebook"
+      title="Open the Nebula Guidebook"
     >
       Guidebook
     </button>
@@ -2001,7 +2090,7 @@ const deleteAxis = (axisId: string) => {
       Guidebook
     </div>
     <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-      How to use Baby Island!
+      How to use Nebula!
     </div>
   </div>
 
@@ -2079,7 +2168,7 @@ const deleteAxis = (axisId: string) => {
       <h2 style={{ margin: "6px 0 8px" }}>1. Philosophy</h2>
 
       <p>
-        Baby Island is a visual strategy framework built on the idea that roadmaps should convey direction,
+        Nebula is a visual strategy framework built on the idea that roadmaps should convey direction,
         maturity, and purpose without pretending to know the future with fake precision.
       </p>
       <p>
@@ -2124,12 +2213,6 @@ const deleteAxis = (axisId: string) => {
         into reality.
       </p>
 
-      <h3 style={{ margin: "14px 0 6px" }}>1.5 The Baby (The &quot;Where We Are Today&quot;)</h3>
-      <p>
-        At the center is a simple icon — the Baby. It is not the focal point of the framework; it is a symbol of the
-        present state. It represents the idea that all strategies begin in infancy relative to the future goals defined
-        on the perimeter. It marks the starting point from which growth radiates outward.
-      </p>
     </section>
 
     <hr style={{ margin: "18px 0", border: 0, borderTop: "1px solid rgba(0,0,0,0.08)" }} />
@@ -2171,13 +2254,6 @@ const deleteAxis = (axisId: string) => {
         <li>Sequence determines ordering when multiple nodes share an axis + ring.</li>
       </ul>
 
-      <h3 style={{ margin: "14px 0 6px" }}>Center: The Baby (The &quot;Where We Are Today&quot;)</h3>
-      <ul>
-        <li>A symbolic icon representing the present state.</li>
-        <li>Visual anchor reminding that strategy grows outward from today’s starting point.</li>
-        <li>Not a focal element — a contextual one.</li>
-      </ul>
-
       <h3 style={{ margin: "14px 0 6px" }}>Contours: Strategic Density &amp; Negative Space</h3>
       <ul>
         <li>Dense areas form the &quot;island mass&quot; of investment.</li>
@@ -2194,7 +2270,7 @@ const deleteAxis = (axisId: string) => {
         <li>Avoid dates. Rings are maturity, not time.</li>
         <li>No features without purpose. Every node must ladder to a North Star.</li>
         <li>Axes change rarely. If you change them often, you don’t have a strategy.</li>
-        <li>Clarity &gt; precision. Baby Island is about direction, not scheduling.</li>
+        <li>Clarity &gt; precision. Nebula is about direction, not scheduling.</li>
         <li>Negative space matters. Gaps are as important as planned work.</li>
       </ol>
     </section>
@@ -2205,14 +2281,14 @@ const deleteAxis = (axisId: string) => {
       <h2 style={{ margin: "6px 0 8px" }}>4. The Law of Simplicity (&quot;&lt; = &gt;&quot;)</h2>
 
       <p>
-        Baby Island is built on a communication philosophy: say the hard thing in the simplest way possible. This
+        Nebula is built on a communication philosophy: say the hard thing in the simplest way possible. This
         principle anchors the entire framework.
       </p>
 
       <h3 style={{ margin: "14px 0 6px" }}>4.1 Essence</h3>
       <p>
         A roadmap is only valuable if it is readable, interpretable, and memorable. Complexity destroys meaning.
-        Baby Island forces the discipline of focus:
+        Nebula forces the discipline of focus:
       </p>
       <ul>
         <li>If it can’t fit on one slide, it’s too much.</li>
@@ -2237,7 +2313,7 @@ const deleteAxis = (axisId: string) => {
         <li>Let negative space communicate priorities.</li>
       </ul>
 
-      <p>Baby Island works because it respects human cognition and rewards clarity.</p>
+      <p>Nebula works because it respects human cognition and rewards clarity.</p>
     </section>
 
     <hr style={{ margin: "18px 0", border: 0, borderTop: "1px solid rgba(0,0,0,0.08)" }} />
@@ -2246,8 +2322,8 @@ const deleteAxis = (axisId: string) => {
       <h2 style={{ margin: "6px 0 8px" }}>5. Tools for Adults: The No Child Locks Principle</h2>
 
       <p>
-        Baby Island tools must respect the intelligence and autonomy of the people using them. Inspired by the No
-        Child Locks philosophy, the Baby Island editor embraces guidance—not restriction.
+        Nebula tools must respect the intelligence and autonomy of the people using them. Inspired by the No
+        Child Locks philosophy, the Nebula editor embraces guidance—not restriction.
       </p>
 
       <h3 style={{ margin: "14px 0 6px" }}>5.1 Adults, Not Toddlers</h3>
@@ -2261,7 +2337,7 @@ const deleteAxis = (axisId: string) => {
         <li>Guardrails prevent breaking the metaphor (e.g., unreadable layouts).</li>
         <li>Child locks prevent capability out of fear (e.g., hard limits on nodes).</li>
       </ul>
-      <p>Baby Island only uses guardrails. Never child locks.</p>
+      <p>Nebula only uses guardrails. Never child locks.</p>
 
       <h3 style={{ margin: "14px 0 6px" }}>5.3 Nudge, Don’t Prevent</h3>
       <p>The tool will:</p>
@@ -2288,7 +2364,7 @@ const deleteAxis = (axisId: string) => {
       </p>
 
       <h3 style={{ margin: "14px 0 6px" }}>5.5 Transparency and Shared Reality</h3>
-      <p>The purpose of Baby Island is alignment, not enforcement. Its canvas is a way to expose:</p>
+      <p>The purpose of Nebula is alignment, not enforcement. Its canvas is a way to expose:</p>
       <ul>
         <li>Gaps</li>
         <li>Imbalances</li>
@@ -2306,7 +2382,7 @@ const deleteAxis = (axisId: string) => {
       <h2 style={{ margin: "6px 0 8px" }}>6. Data Model</h2>
 
       <p>
-        To make Baby Island usable in a web app (instead of manual slide work), we treat the chart as data, not
+        To make Nebula usable in a web app (instead of manual slide work), we treat the chart as data, not
         drawing.
       </p>
 
@@ -2372,7 +2448,7 @@ const deleteAxis = (axisId: string) => {
       </ul>
 
       <p className="muted" style={{ marginTop: 12 }}>
-        This separation (data model vs. rendering) is what makes the Baby Island format implementable as a
+        This separation (data model vs. rendering) is what makes the Nebula format implementable as a
         reusable tool instead of a hand-crafted slide.
       </p>
     </section>
@@ -3119,7 +3195,7 @@ const deleteAxis = (axisId: string) => {
         <button
           className="smallBtn"
           onClick={() => importFileInputRef.current?.click()}
-          title="Import a previously exported Baby Island data file (JSON)"
+          title="Import a previously exported Nebula data file (JSON)"
         >
           Import
         </button>
@@ -3822,41 +3898,63 @@ onPointerCancel={(e) => {
 
 
 
- <defs>
-  <radialGradient id="oceanGrad" cx="50%" cy="50%" r="75%" gradientUnits="userSpaceOnUse">
-  <stop offset="0%"  stopColor="#e9fbff" />
-  <stop offset="60%" stopColor="#d6f4ff" />
-  <stop offset="100%" stopColor="#c2eaff" />
+<defs>
+  {/* Space vignette */}
+  <radialGradient id="spaceVignette" cx="50%" cy="50%" r="78%" gradientUnits="objectBoundingBox">
+    <stop offset="0%" stopColor="#0B0A14" />
+    <stop offset="55%" stopColor="#070710" />
+    <stop offset="100%" stopColor="#04030A" />
+  </radialGradient>
 
-  {/* slow, subtle "breathing" ripple */}
- <animate
-  attributeName="r"
-  values="350;430;350"
-  dur="3s"
-  repeatCount="indefinite"
-/>
+  {/* Tiny starfield pattern (crisp dots + a few soft ones) */}
+  <pattern id="starsPattern" width="180" height="180" patternUnits="userSpaceOnUse">
+    {/* crisp */}
+    <circle cx="22" cy="26" r="1" fill="rgba(255,255,255,0.65)" />
+    <circle cx="88" cy="54" r="1" fill="rgba(255,255,255,0.55)" />
+    <circle cx="140" cy="32" r="1" fill="rgba(255,255,255,0.45)" />
+    <circle cx="64" cy="118" r="1" fill="rgba(255,255,255,0.50)" />
+    <circle cx="156" cy="132" r="1" fill="rgba(255,255,255,0.60)" />
+    <circle cx="108" cy="156" r="1" fill="rgba(255,255,255,0.40)" />
 
+    {/* a few “soft” stars */}
+    <circle cx="36" cy="150" r="2" fill="rgba(255,255,255,0.14)" />
+    <circle cx="168" cy="78" r="2" fill="rgba(255,255,255,0.12)" />
+    <circle cx="92" cy="92" r="3" fill="rgba(255,255,255,0.08)" />
+  </pattern>
 
-</radialGradient>
+  {/* Nebula haze overlay */}
+  <radialGradient id="nebulaHaze" cx="50%" cy="50%" r="85%">
+    <stop offset="0%" stopColor="rgba(255,79,160,0.08)" />
+    <stop offset="45%" stopColor="rgba(157,88,255,0.07)" />
+    <stop offset="100%" stopColor="rgba(0,0,0,0)" />
+  </radialGradient>
 
+  {/* Soft glow for event-horizon ring */}
+  <filter id="haloBlur" x="-30%" y="-30%" width="160%" height="160%">
+    <feGaussianBlur stdDeviation="3.2" result="blur" />
+  </filter>
 
-  {/* Clip so water only appears inside island boundary */}
+  <linearGradient id="eventHorizonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stopColor="rgba(255,149,77,0.65)" />
+    <stop offset="45%" stopColor="rgba(255,79,160,0.55)" />
+    <stop offset="100%" stopColor="rgba(157,88,255,0.60)" />
+  </linearGradient>
+
+  {/* Clip so space only appears inside island boundary */}
   <clipPath id="oceanClip">
     <circle cx={cx2} cy={cy2} r={ringLater} />
   </clipPath>
 </defs>
 
 
+
   <g>
- {/* Ocean background */}
-<rect
-  x="0"
-  y="0"
-  width={w}
-  height={h}
-  fill="url(#oceanGrad)"
-  clipPath="url(#oceanClip)"
-/>
+ {/* Space background (inside boundary) */}
+<g clipPath="url(#oceanClip)">
+  <rect x="0" y="0" width={w} height={h} fill="url(#spaceVignette)" />
+  <rect x="0" y="0" width={w} height={h} fill="url(#starsPattern)" opacity={0.9} />
+  <rect x="0" y="0" width={w} height={h} fill="url(#nebulaHaze)" opacity={1} />
+</g>
 
 
 
@@ -3882,8 +3980,30 @@ onPointerCancel={(e) => {
 
 
 
-                                    {/* Rings (outer border only) */}
-                      <circle cx={cx2} cy={cy2} r={ringLater} fill="none" stroke="#ddd" />
+{/* Event horizon outer ring */}
+<g>
+  {/* soft halo */}
+  <circle
+    cx={cx2}
+    cy={cy2}
+    r={ringLater}
+    fill="none"
+    stroke="url(#eventHorizonGrad)"
+    strokeWidth={10}
+    opacity={0.22}
+    filter="url(#haloBlur)"
+  />
+  {/* crisp rim */}
+  <circle
+    cx={cx2}
+    cy={cy2}
+    r={ringLater}
+    fill="none"
+    stroke="rgba(255,255,255,0.16)"
+    strokeWidth={1.25}
+  />
+</g>
+
 
 
                       {/* Axes + labels */}
@@ -3905,7 +4025,8 @@ onPointerCancel={(e) => {
 
                         return (
                           <g key={a.id}>
-                            <line x1={cx2} y1={cy2} x2={x2} y2={y2} stroke="rgba(0,0,0,0.45)" strokeWidth={2} />
+                            <line x1={cx2} y1={cy2} x2={x2} y2={y2} stroke="rgba(255,255,255,0.16)" strokeWidth={2} />
+
 
                             <text
                               x={lx + dx}
@@ -3913,7 +4034,7 @@ onPointerCancel={(e) => {
                               textAnchor={anchor}
                               dominantBaseline="middle"
                               fontSize="18"
-                              fill="#333"
+                              fill="rgba(245,247,255,0.92)"
                               style={{ cursor: "pointer", userSelect: "none", fontWeight: 500 }}
                               onMouseEnter={(e) => {
                                 const rect = stageRef.current?.getBoundingClientRect();
@@ -4223,19 +4344,34 @@ const isSelected = selectedNodeId === n.id;
                               }}
                               style={{ cursor: "pointer" }}
                             >
-                                                            <circle
-                                cx={x}
-                                cy={y}
-                                r={isSelected ? 11 : 8}
-                                fill={isSelected ? "#111" : "#0CE7A8"}
-                                stroke={isSelected ? "#0CE7A8" : "rgba(0,0,0,0.25)"}
-                                strokeWidth={isSelected ? 3 : 1}
-                                onDoubleClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  startInlineNodeEdit(n.id, n.label, x, y);
-                                }}
-                              />
+<circle
+  cx={x}
+  cy={y}
+  r={isSelected ? 9 : 6}
+  fill={
+    isSelected
+      ? "rgba(255,255,255,0.14)"
+      : (n.ringId === "uncommitted"
+          ? "rgba(245,247,255,0.78)"
+          : ((RING_COLORS[n.ringId] ? `${RING_COLORS[n.ringId]}CC` : "rgba(245,247,255,0.78)")))
+  }
+  stroke={
+    isSelected
+      ? "url(#eventHorizonGrad)"
+      : "rgba(255,255,255,0.22)"
+  }
+  strokeWidth={isSelected ? 3 : 1.25}
+  style={{
+    filter: isSelected ? "drop-shadow(0 0 10px rgba(255,79,160,0.28)) drop-shadow(0 0 14px rgba(157,88,255,0.20))" : "none",
+  }}
+  onDoubleClick={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startInlineNodeEdit(n.id, n.label, x, y);
+  }}
+/>
+
+
 
 
                              {showNodeLabels && (() => {
@@ -4256,7 +4392,8 @@ const isSelected = selectedNodeId === n.id;
         x={textX}
         y={startY}
         fontSize={NODE_LABEL_FONT_SIZE}
-        fill={isSelected ? "#111" : "#333"}
+        fill={isSelected ? "rgba(255,255,255,0.96)" : "rgba(245,247,255,0.86)"}
+
         style={{ fontWeight: isSelected ? 600 : 300, cursor: "text", userSelect: "none" }}
         onDoubleClick={(e) => {
           e.preventDefault();
@@ -4293,7 +4430,7 @@ const isSelected = selectedNodeId === n.id;
             y1={startY - 10}
             x2={textX + (n.wrapWidth ?? DEFAULT_NODE_WRAP_WIDTH)}
             y2={startY + (lines.length - 1) * lineH + 10}
-            stroke="rgba(0,0,0,0.18)"
+            stroke="rgba(255,255,255,0.16)"
             strokeWidth={1}
           />
 
@@ -4304,7 +4441,7 @@ const isSelected = selectedNodeId === n.id;
             width={10}
             height={12}
             rx={4}
-            fill="rgba(0,0,0,0.22)"
+            fill="rgba(255,255,255,0.16)"
             style={{ cursor: "ew-resize" }}
           />
         </g>
@@ -4329,13 +4466,14 @@ const isSelected = selectedNodeId === n.id;
                         top: 0,
                         pointerEvents: "none",
                         transform: `translate(${tooltip.x}px, ${tooltip.y}px)`,
-                        background: "white",
-                        border: "1px solid #ddd",
-                        borderRadius: 10,
+                        background: "rgba(12, 12, 22, 0.78)",
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        borderRadius: 12,
                         padding: "8px 10px",
                         fontSize: 13,
-                        color: "#333",
-                        boxShadow: "0 6px 20px rgba(0,0,0,0.08)",
+                        color: "rgba(245,247,255,0.92)",
+                        boxShadow: "0 18px 46px rgba(0,0,0,0.45)",
+                        backdropFilter: "blur(10px)",
                         maxWidth: 280,
                         lineHeight: 1.25,
                       }}
@@ -4397,8 +4535,12 @@ const isSelected = selectedNodeId === n.id;
                         width: 220,
                         padding: "6px 8px",
                         borderRadius: 10,
-                        border: "1px solid rgba(0,0,0,0.18)",
-                        boxShadow: "0 6px 18px rgba(0,0,0,0.10)",
+                        border: "1px solid rgba(255,255,255,0.16)",
+                        boxShadow: "0 18px 46px rgba(0,0,0,0.45)",
+                        background: "rgba(12, 12, 22, 0.82)",
+                        color: "rgba(245,247,255,0.92)",
+                        backdropFilter: "blur(10px)",
+
                         fontSize: 13,
                         fontFamily:
                           '"Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
