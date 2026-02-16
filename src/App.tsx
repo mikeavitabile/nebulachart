@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import babyImg from "./assets/star-2.png";
 import "./App.css";
 
@@ -106,7 +106,53 @@ type NodeItem = {
   rOverride?: number | null; // optional manual radial position (px from center)
 };
 
+// -------------------- Defaults (module-scope; used everywhere) --------------------
+const DEFAULT_TITLE = "Example Product Strategy";
+const DEFAULT_SUBTITLE = "Nebula — Workshop Edition";
+
+const DEFAULT_AXES: Axis[] = [
+  {
+    id: "discovery",
+    label: "Discovery",
+    northStar: "Users effortlessly find something they’ll love in minutes.",
+  },
+  {
+    id: "personalization",
+    label: "Personalization",
+    northStar: "The experience feels tailored without feeling invasive.",
+  },
+  {
+    id: "playback",
+    label: "Playback",
+    northStar: "Playback is instant, stable, and predictable everywhere.",
+  },
+  {
+    id: "platform",
+    label: "Platform",
+    northStar: "The app feels fast and responsive on every device.",
+  },
+];
+
+const DEFAULT_RINGS: Ring[] = [
+  { id: "now", label: "Now" },
+  { id: "next", label: "Next" },
+  { id: "later", label: "Later" },
+  { id: "uncommitted", label: "Uncommitted" },
+];
+
+// Truly blank canvas (but rings are always present)
+const BLANK_AXES: Axis[] = [];
+const BLANK_NODES: NodeItem[] = [];
+
+const DEFAULT_NODES: NodeItem[] = [
+  { id: uid(), label: "Search tuning", axisId: "discovery", ringId: "now", sequence: 1 },
+  { id: uid(), label: "Better browse", axisId: "discovery", ringId: "next", sequence: 2 },
+  { id: uid(), label: "Startup improvements", axisId: "playback", ringId: "now", sequence: 1 },
+  { id: uid(), label: "Scroll reduction", axisId: "platform", ringId: "next", sequence: 2 },
+];
+
 // Built-in snapshot templates (module-scope so they’re safe to reference)
+
 const BUILTIN_BLANK_SNAPSHOT: BabyIslandSnapshotV1 = {
   id: "builtin-blank",
   name: "Blank Nebula",
@@ -678,51 +724,7 @@ return rawDotR(n);
 
 
 export default function App() {
-  // --- Defaults (used for Reset + as fallback) ---
-  const DEFAULT_TITLE = "Example Product Strategy";
-  const DEFAULT_SUBTITLE = "Nebula — Workshop Edition";
 
-  const DEFAULT_AXES: Axis[] = [
-    {
-      id: "discovery",
-      label: "Discovery",
-      northStar: "Users effortlessly find something they’ll love in minutes.",
-    },
-    {
-      id: "personalization",
-      label: "Personalization",
-      northStar: "The experience feels tailored without feeling invasive.",
-    },
-    {
-      id: "playback",
-      label: "Playback",
-      northStar: "Playback is instant, stable, and predictable everywhere.",
-    },
-    {
-      id: "platform",
-      label: "Platform",
-      northStar: "The app feels fast and responsive on every device.",
-    },
-  ];
-
-  const DEFAULT_RINGS: Ring[] = [
-  { id: "now", label: "Now" },
-  { id: "next", label: "Next" },
-  { id: "later", label: "Later" },
-  { id: "uncommitted", label: "Uncommitted" },
-];
-
-// Truly blank canvas (but rings are always present)
-const BLANK_AXES: Axis[] = [];
-const BLANK_NODES: NodeItem[] = [];
-
-
-  const DEFAULT_NODES: NodeItem[] = [
-    { id: uid(), label: "Search tuning", axisId: "discovery", ringId: "now", sequence: 1 },
-    { id: uid(), label: "Better browse", axisId: "discovery", ringId: "next", sequence: 2 },
-    { id: uid(), label: "Startup improvements", axisId: "playback", ringId: "now", sequence: 1 },
-    { id: uid(), label: "Scroll reduction", axisId: "platform", ringId: "next", sequence: 2 },
-  ];
 
   // --- State ---
   const [title, setTitle] = useState(DEFAULT_TITLE);
@@ -837,6 +839,22 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
     boxShadow: on ? "0 10px 26px rgba(0,0,0,0.35)" : "none",
     backdropFilter: "blur(6px)",
   });
+
+
+  const darkSelectStyle: React.CSSProperties = {
+    ...darkFieldStyle,
+    padding: "8px 10px",
+    appearance: "none",
+    WebkitAppearance: "none",
+    MozAppearance: "none",
+  };
+
+  const darkTextareaStyle: CSSProperties = {
+    ...darkFieldStyle,
+    padding: "8px 10px",
+    resize: "vertical",
+  };
+
 
 
   const [babySpin, setBabySpin] = useState(0);
@@ -2580,7 +2598,26 @@ const deleteAxis = (axisId: string) => {
           const axisNodeCount = nodes.filter((n) => n.axisId === axis.id).length;
 
           return (
-            <div key={axis.id} className="nodeAxisGroup">
+            <div
+  key={axis.id}
+  className="nodeAxisGroup"
+  style={{
+    background: "rgba(0,0,0,0.40)",
+    borderRadius: 14,
+    padding: 10,
+    border: "1px solid rgba(255,255,255,0.18)",
+
+    boxShadow: `
+      0 0 0 1px rgba(255,255,255,0.06) inset,
+      0 0 18px rgba(157,88,255,0.35),
+      0 0 36px rgba(255,79,160,0.20),
+      0 18px 40px rgba(0,0,0,0.45)
+    `,
+    backdropFilter: "blur(10px)",
+  }}
+>
+
+
               <div className="nodeAxisHeader">
                 <div className="axisHeaderMain">
                   {axisWarnings[axis.id]?.length ? (
@@ -2595,12 +2632,14 @@ const deleteAxis = (axisId: string) => {
                   ) : null}
 
                   <input
-                    className="nodeAxisTitleInput"
-                    value={axis.label}
-                    onChange={(e) => updateAxisLabel(axis.id, e.target.value)}
-                    placeholder="Axis name"
-                    onClick={(e) => e.stopPropagation()}
-                  />
+  className="nodeAxisTitleInput"
+  value={axis.label}
+  onChange={(e) => updateAxisLabel(axis.id, e.target.value)}
+  placeholder="Axis name"
+  onClick={(e) => e.stopPropagation()}
+  style={{ ...darkFieldStyle, padding: "8px 10px" }}
+/>
+
 
                   <div className="nodeAxisNorthStarWrap">
                     <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>
@@ -2608,13 +2647,15 @@ const deleteAxis = (axisId: string) => {
                     </div>
 
                     <textarea
-                      className="nodeAxisNorthStarInput"
-                      value={axis.northStar}
-                      onChange={(e) => updateAxisNorthStar(axis.id, e.target.value)}
-                      placeholder="What does success mean for this axis?"
-                      rows={2}
-                      onClick={(e) => e.stopPropagation()}
-                    />
+  className="nodeAxisNorthStarInput"
+  value={axis.northStar}
+  onChange={(e) => updateAxisNorthStar(axis.id, e.target.value)}
+  placeholder="What does success mean for this axis?"
+  rows={2}
+  onClick={(e) => e.stopPropagation()}
+  style={darkTextareaStyle}
+/>
+
                   </div>
 
                   <div className="axisMetaRow">
@@ -2746,7 +2787,30 @@ const deleteAxis = (axisId: string) => {
                                   nodeRowRefs.current[n.id] = el;
                                 }}
                                 onClick={() => setSelectedNodeId(n.id)}
-                                style={{ cursor: "pointer" }}
+                                style={{
+  cursor: "pointer",
+  background: selectedNodeId === n.id ? "rgba(0,0,0,0.52)" : "rgba(0,0,0,0.36)",
+  borderRadius: 12,
+  padding: 10,
+  border: selectedNodeId === n.id
+    ? "1px solid rgba(255,255,255,0.26)"
+    : "1px solid rgba(255,255,255,0.14)",
+  boxShadow: selectedNodeId === n.id
+    ? `
+      0 0 0 1px rgba(255,255,255,0.08) inset,
+      0 0 16px rgba(157,88,255,0.38),
+      0 0 28px rgba(255,79,160,0.22),
+      0 14px 34px rgba(0,0,0,0.55)
+    `
+    : `
+      0 0 0 1px rgba(255,255,255,0.05) inset,
+      0 0 10px rgba(157,88,255,0.22),
+      0 0 18px rgba(255,79,160,0.12),
+      0 10px 26px rgba(0,0,0,0.45)
+    `,
+  backdropFilter: "blur(10px)",
+}}
+
                               >
                                 <div className="nodeMeta">
                                   <div className="nodeLabel">Node</div>
@@ -2759,7 +2823,9 @@ const deleteAxis = (axisId: string) => {
       )
     )
   }
+  style={{ ...darkFieldStyle, padding: "8px 10px" }}
 />
+
 
                                 </div>
 
@@ -2784,37 +2850,45 @@ const deleteAxis = (axisId: string) => {
 
   <span className="muted" style={{ fontSize: 12, fontWeight: 700 }}>W</span>
   <input
-    type="text"
-    inputMode="numeric"
-    pattern="[0-9]*"
-    value={n.wrapWidth ? String(n.wrapWidth) : ""}
-    placeholder="px"
-    onChange={(e) => {
-      const v = e.target.value.replace(/\D/g, "");
-      const num = v === "" ? null : Math.max(60, Math.min(360, parseInt(v, 10)));
-      setNodes((prev) =>
-        prev.map((x) => (x.id === n.id ? { ...x, wrapWidth: num } : x))
-      );
-    }}
-    style={{ width: 58, padding: "6px 8px" }}
-    title="Wrap width (px)"
-  />
+  type="text"
+  inputMode="numeric"
+  pattern="[0-9]*"
+  value={n.wrapWidth ? String(n.wrapWidth) : ""}
+  placeholder="px"
+  onChange={(e) => {
+    const v = e.target.value.replace(/\D/g, "");
+    const num = v === "" ? null : Math.max(60, Math.min(360, parseInt(v, 10)));
+    setNodes((prev) =>
+      prev.map((x) => (x.id === n.id ? { ...x, wrapWidth: num } : x))
+    );
+  }}
+  style={{
+    ...darkFieldStyle,
+    width: 58,
+    padding: "6px 8px",
+    textAlign: "center",
+  }}
+  title="Wrap width (px)"
+/>
+
 </div>
 
 
                                 <div className="nodeControls">
                                   <div className="nodeControl">
                                     <div className="nodeLabel">Ring</div>
-                                    <select
-                                      value={n.ringId}
-                                      onChange={(e) =>
-                                        setNodes((prev) =>
-                                          prev.map((x) =>
-                                            x.id === n.id ? { ...x, ringId: e.target.value } : x
-                                          )
-                                        )
-                                      }
-                                    >
+                                   <select
+  value={n.ringId}
+  onChange={(e) =>
+    setNodes((prev) =>
+      prev.map((x) =>
+        x.id === n.id ? { ...x, ringId: e.target.value } : x
+      )
+    )
+  }
+  style={darkSelectStyle}
+>
+
                                       {rings.map((rr) => (
                                         <option key={rr.id} value={rr.id}>
                                           {rr.label}
