@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+
 import babyImg from "./assets/star-2.png";
 import "./App.css";
 
@@ -106,53 +107,7 @@ type NodeItem = {
   rOverride?: number | null; // optional manual radial position (px from center)
 };
 
-// -------------------- Defaults (module-scope; used everywhere) --------------------
-const DEFAULT_TITLE = "Example Product Strategy";
-const DEFAULT_SUBTITLE = "Nebula — Workshop Edition";
-
-const DEFAULT_AXES: Axis[] = [
-  {
-    id: "discovery",
-    label: "Discovery",
-    northStar: "Users effortlessly find something they’ll love in minutes.",
-  },
-  {
-    id: "personalization",
-    label: "Personalization",
-    northStar: "The experience feels tailored without feeling invasive.",
-  },
-  {
-    id: "playback",
-    label: "Playback",
-    northStar: "Playback is instant, stable, and predictable everywhere.",
-  },
-  {
-    id: "platform",
-    label: "Platform",
-    northStar: "The app feels fast and responsive on every device.",
-  },
-];
-
-const DEFAULT_RINGS: Ring[] = [
-  { id: "now", label: "Now" },
-  { id: "next", label: "Next" },
-  { id: "later", label: "Later" },
-  { id: "uncommitted", label: "Uncommitted" },
-];
-
-// Truly blank canvas (but rings are always present)
-const BLANK_AXES: Axis[] = [];
-const BLANK_NODES: NodeItem[] = [];
-
-const DEFAULT_NODES: NodeItem[] = [
-  { id: uid(), label: "Search tuning", axisId: "discovery", ringId: "now", sequence: 1 },
-  { id: uid(), label: "Better browse", axisId: "discovery", ringId: "next", sequence: 2 },
-  { id: uid(), label: "Startup improvements", axisId: "playback", ringId: "now", sequence: 1 },
-  { id: uid(), label: "Scroll reduction", axisId: "platform", ringId: "next", sequence: 2 },
-];
-
 // Built-in snapshot templates (module-scope so they’re safe to reference)
-
 const BUILTIN_BLANK_SNAPSHOT: BabyIslandSnapshotV1 = {
   id: "builtin-blank",
   name: "Blank Nebula",
@@ -724,7 +679,51 @@ return rawDotR(n);
 
 
 export default function App() {
+  // --- Defaults (used for Reset + as fallback) ---
+  const DEFAULT_TITLE = "Example Product Strategy";
+  const DEFAULT_SUBTITLE = "Nebula — Workshop Edition";
 
+  const DEFAULT_AXES: Axis[] = [
+    {
+      id: "discovery",
+      label: "Discovery",
+      northStar: "Users effortlessly find something they’ll love in minutes.",
+    },
+    {
+      id: "personalization",
+      label: "Personalization",
+      northStar: "The experience feels tailored without feeling invasive.",
+    },
+    {
+      id: "playback",
+      label: "Playback",
+      northStar: "Playback is instant, stable, and predictable everywhere.",
+    },
+    {
+      id: "platform",
+      label: "Platform",
+      northStar: "The app feels fast and responsive on every device.",
+    },
+  ];
+
+  const DEFAULT_RINGS: Ring[] = [
+  { id: "now", label: "Now" },
+  { id: "next", label: "Next" },
+  { id: "later", label: "Later" },
+  { id: "uncommitted", label: "Uncommitted" },
+];
+
+// Truly blank canvas (but rings are always present)
+const BLANK_AXES: Axis[] = [];
+const BLANK_NODES: NodeItem[] = [];
+
+
+  const DEFAULT_NODES: NodeItem[] = [
+    { id: uid(), label: "Search tuning", axisId: "discovery", ringId: "now", sequence: 1 },
+    { id: uid(), label: "Better browse", axisId: "discovery", ringId: "next", sequence: 2 },
+    { id: uid(), label: "Startup improvements", axisId: "playback", ringId: "now", sequence: 1 },
+    { id: uid(), label: "Scroll reduction", axisId: "platform", ringId: "next", sequence: 2 },
+  ];
 
   // --- State ---
   const [title, setTitle] = useState(DEFAULT_TITLE);
@@ -840,6 +839,19 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
     backdropFilter: "blur(6px)",
   });
 
+  // --- Dark mode form controls (used by Nodes editor) ---
+  const darkFieldStyle: React.CSSProperties = {
+    width: "100%",
+    background: "rgba(0,0,0,0.55)",              // key fix: make it actually dark
+    color: "rgba(245,247,255,0.92)",
+    border: "1px solid rgba(255,255,255,0.20)",
+    borderRadius: 10,
+    outline: "none",
+    boxShadow:
+      "0 0 0 1px rgba(255,255,255,0.06) inset, 0 10px 24px rgba(0,0,0,0.25)",
+    backdropFilter: "blur(8px)",
+  };
+
 
   const darkSelectStyle: React.CSSProperties = {
     ...darkFieldStyle,
@@ -849,7 +861,7 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
     MozAppearance: "none",
   };
 
-  const darkTextareaStyle: CSSProperties = {
+  const darkTextareaStyle: React.CSSProperties = {
     ...darkFieldStyle,
     padding: "8px 10px",
     resize: "vertical",
@@ -2787,30 +2799,7 @@ const deleteAxis = (axisId: string) => {
                                   nodeRowRefs.current[n.id] = el;
                                 }}
                                 onClick={() => setSelectedNodeId(n.id)}
-                                style={{
-  cursor: "pointer",
-  background: selectedNodeId === n.id ? "rgba(0,0,0,0.52)" : "rgba(0,0,0,0.36)",
-  borderRadius: 12,
-  padding: 10,
-  border: selectedNodeId === n.id
-    ? "1px solid rgba(255,255,255,0.26)"
-    : "1px solid rgba(255,255,255,0.14)",
-  boxShadow: selectedNodeId === n.id
-    ? `
-      0 0 0 1px rgba(255,255,255,0.08) inset,
-      0 0 16px rgba(157,88,255,0.38),
-      0 0 28px rgba(255,79,160,0.22),
-      0 14px 34px rgba(0,0,0,0.55)
-    `
-    : `
-      0 0 0 1px rgba(255,255,255,0.05) inset,
-      0 0 10px rgba(157,88,255,0.22),
-      0 0 18px rgba(255,79,160,0.12),
-      0 10px 26px rgba(0,0,0,0.45)
-    `,
-  backdropFilter: "blur(10px)",
-}}
-
+                                style={{ cursor: "pointer" }}
                               >
                                 <div className="nodeMeta">
                                   <div className="nodeLabel">Node</div>
