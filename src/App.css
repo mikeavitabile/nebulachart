@@ -273,7 +273,7 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 10px;
 }
 
-/* Axis group container */
+/* The axis group container */
 .nodeAxisGroup {
   border: 1px solid #e6e6e6;
   border-radius: 14px;
