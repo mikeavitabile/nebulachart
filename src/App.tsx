@@ -108,7 +108,7 @@ type NodeItem = {
 };
 
 // Built-in snapshot templates (module-scope so they’re safe to reference)
-const BUILTIN_BLANK_SNAPSHOT: BabyIslandSnapshotV1 = {
+const BUILTIN_BLANK_SNAPSHOT: NebulaSnapshotV1 = {
   id: "builtin-blank",
   name: "Blank Nebula",
   createdAt: 0,
@@ -165,7 +165,7 @@ const AUTOSAVE_KEY = "baby-island-autosave-v1";
 
 
 
-type BabyIslandSavedStateV1 = {
+type NebulaSavedStateV1 = {
   v: 1;
   savedAt: number;
   title: string;
@@ -175,12 +175,12 @@ type BabyIslandSavedStateV1 = {
   nodes: NodeItem[];
 };
 
-type BabyIslandSnapshotV1 = {
+type NebulaSnapshotV1 = {
   id: string;
   name: string;
   createdAt: number;
   updatedAt: number;
-  state: BabyIslandSavedStateV1;
+  state: NebulaSavedStateV1;
 };
 
 
@@ -192,8 +192,8 @@ function safeParseJSON<T>(raw: string | null): T | null {
     return null;
   }
 }
-function readSnapshots(): BabyIslandSnapshotV1[] {
-  const parsed = safeParseJSON<BabyIslandSnapshotV1[]>(localStorage.getItem(SNAPSHOTS_KEY));
+function readSnapshots(): NebulaSnapshotV1[] {
+  const parsed = safeParseJSON<NebulaSnapshotV1[]>(localStorage.getItem(SNAPSHOTS_KEY));
   return Array.isArray(parsed) ? parsed : [];
 }
 
@@ -204,7 +204,7 @@ function ensureUncommittedRing(rings: Ring[]): Ring[] {
   return [...rings, { id: "uncommitted", label: "Uncommitted" }];
 }
 
-function migrateSnapshotsAddUncommitted(existing: BabyIslandSnapshotV1[]) {
+function migrateSnapshotsAddUncommitted(existing: NebulaSnapshotV1[]) {
   let changed = false;
 
   const next = existing.map((sn) => {
@@ -230,17 +230,17 @@ function migrateSnapshotsAddUncommitted(existing: BabyIslandSnapshotV1[]) {
 }
 
 
-function writeSnapshots(next: BabyIslandSnapshotV1[]) {
+function writeSnapshots(next: NebulaSnapshotV1[]) {
   localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(next));
 }
 
 // Ensure a Blank Island snapshot exists (and return updated list)
-function ensureBlankSnapshot(existing: BabyIslandSnapshotV1[]) {
+function ensureBlankSnapshot(existing: NebulaSnapshotV1[]) {
   const hasBlank = existing.some((s) => s.id === "builtin-blank");
   if (hasBlank) return existing;
 
   const now = Date.now();
-  const blank: BabyIslandSnapshotV1 = {
+  const blank: NebulaSnapshotV1 = {
     id: "builtin-blank",
     name: "Blank Nebula",
     createdAt: now,
@@ -771,8 +771,8 @@ const clampTooltipToStage = (x: number, y: number) => {
 };
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const babySpinAnimRef = useRef<SVGAnimateTransformElement | null>(null);
-const babySpinDirRef = useRef<1 | -1>(1); // 1 = clockwise, -1 = counter-clockwise
+  const nebulaSpinAnimRef = useRef<SVGAnimateTransformElement | null>(null);
+const nebulaSpinDirRef = useRef<1 | -1>(1); // 1 = clockwise, -1 = counter-clockwise
 
 
   // -------------------- Drag state (click + drag) --------------------
@@ -869,8 +869,8 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
 
 
 
-  const [babySpin, setBabySpin] = useState(0);
-  const [snapshots, setSnapshots] = useState<BabyIslandSnapshotV1[]>([]);
+  const [nebulaSpin, setNebulaSpin] = useState(0);
+  const [snapshots, setSnapshots] = useState<NebulaSnapshotV1[]>([]);
   const [activeSnapshotId, setActiveSnapshotId] = useState<string | null>(null);
    const [copiedAt, setCopiedAt] = useState<number | null>(null);
 
@@ -898,10 +898,10 @@ const wrapResizeStartRef = useRef<{ x: number; w: number } | null>(null);
         return;
       }
 
-      const s = parsed.state as BabyIslandSavedStateV1;
+      const s = parsed.state as NebulaSavedStateV1;
 
       // Minimal validation / normalization
-      const nextState: BabyIslandSavedStateV1 = {
+      const nextState: NebulaSavedStateV1 = {
         v: 1,
         savedAt: Date.now(),
         title: typeof s.title === "string" ? s.title : "Imported Strategy",
@@ -1017,7 +1017,7 @@ wrapWidth: null,
 
 
   // --- Save / Load / Reset ---
-  const buildStatePayload = (): BabyIslandSavedStateV1 => ({
+  const buildStatePayload = (): NebulaSavedStateV1 => ({
     v: 1,
     savedAt: Date.now(),
     title,
@@ -1204,8 +1204,8 @@ wrapWidth: null,
       // inject style right after <svg ...>
       svgText = svgText.replace(/<svg([^>]*)>/, `<svg$1><style><![CDATA[${fontStyle}]]></style>`);
 
-      // 3) Inline the baby image as a data URL so it always renders in the export
-      // babyImg is your imported asset URL string
+      // 3) Inline the nebula image as a data URL so it always renders in the export
+      // nebulaImg is your imported asset URL string
       const babyUrl = String(babyImg);
       const babyDataUrl = await toDataUrl(babyUrl);
       if (babyDataUrl) {
@@ -1279,7 +1279,7 @@ wrapWidth: null,
 
 
 
-  const loadSnapshotIntoState = (snap: BabyIslandSnapshotV1) => {
+  const loadSnapshotIntoState = (snap: NebulaSnapshotV1) => {
     const s = snap.state;
     setTitle(s.title ?? DEFAULT_TITLE);
     setSubtitle(s.subtitle ?? DEFAULT_SUBTITLE);
@@ -1324,12 +1324,12 @@ wrapWidth: null,
  const createSnapshot = (
   name: string,
   makeActive = true,
-  overrideState?: BabyIslandSavedStateV1
+  overrideState?: NebulaSavedStateV1
 ) => {
 
 
     const now = Date.now();
-    const snap: BabyIslandSnapshotV1 = {
+    const snap: NebulaSnapshotV1 = {
       id: uid(),
       name,
       createdAt: now,
@@ -1428,7 +1428,7 @@ setLastSavedAt(snap.state.savedAt);
     if (!src) return;
 
     const now = Date.now();
-    const copy: BabyIslandSnapshotV1 = {
+    const copy: NebulaSnapshotV1 = {
       id: uid(),
       name: `${src.name} (Copy)`,
       createdAt: now,
@@ -1483,8 +1483,8 @@ const resetWorkingStateBlank = () => {
 // -------------------- Built-in Snapshots --------------------
 
 
-// Example island
-const BUILTIN_EXAMPLE_SNAPSHOT: BabyIslandSnapshotV1 = {
+// Example nebula
+const BUILTIN_EXAMPLE_SNAPSHOT: NebulaSnapshotV1 = {
   id: "builtin-vision-workshop-example",
   name: "Workshop Example",
   createdAt: 1771006683761,
@@ -1721,10 +1721,10 @@ useLayoutEffect(() => {
 
     // 1) Import legacy single-save ONCE (only if snapshots are empty)
     if (existing.length === 0) {
-      const legacy = safeParseJSON<BabyIslandSavedStateV1>(localStorage.getItem(LEGACY_STORAGE_KEY));
+      const legacy = safeParseJSON<NebulaSavedStateV1>(localStorage.getItem(LEGACY_STORAGE_KEY));
       if (legacy && legacy.v === 1) {
         const now = Date.now();
-        const imported: BabyIslandSnapshotV1 = {
+        const imported: NebulaSnapshotV1 = {
           id: uid(),
           name: "Imported",
           createdAt: now,
@@ -1744,7 +1744,7 @@ useLayoutEffect(() => {
     if (existing.length === 0) {
       const now = Date.now();
 
-      const blank: BabyIslandSnapshotV1 = {
+      const blank: NebulaSnapshotV1 = {
         ...BUILTIN_BLANK_SNAPSHOT,
         createdAt: now,
         updatedAt: now,
@@ -1758,7 +1758,7 @@ useLayoutEffect(() => {
         },
       };
 
-      const example: BabyIslandSnapshotV1 = {
+      const example: NebulaSnapshotV1 = {
         ...BUILTIN_EXAMPLE_SNAPSHOT,
         // keep example timestamps as-is (or refresh if you want)
       };
@@ -2202,8 +2202,8 @@ const deleteAxis = (axisId: string) => {
         maturity, and purpose without pretending to know the future with fake precision.
       </p>
       <p>
-        It replaces timelines, swimlanes, and bloated roadmap decks with a radial, topographic metaphor that
-        reflects how a product or organization grows capabilities over time.
+        It replaces timelines, swimlanes, and bloated roadmap decks with a radial, astronomical metaphor that
+        reflects how a product or organization grows capabilities over time, moving from nebulous ideas to concrete deliverables.
       </p>
       <p>It is composed of four core elements, each serving a distinct purpose:</p>
 
@@ -2225,7 +2225,7 @@ const deleteAxis = (axisId: string) => {
       <p>
         The rings represent horizons or maturity stages. They convey how capabilities evolve over time — from
         foundational to advanced. Rings do not map to precise dates; instead, they reflect readiness, sophistication,
-        or impact. They show when a capability meaningfully contributes to the North Star, not when it ships.
+        or impact. They can either show when a capability meaningfully contributes to the North Star or when it ships.
       </p>
 
       <h3 style={{ margin: "14px 0 6px" }}>1.4 Nodes on Axes (The &quot;What&quot;)</h3>
@@ -2286,7 +2286,7 @@ const deleteAxis = (axisId: string) => {
 
       <h3 style={{ margin: "14px 0 6px" }}>Contours: Strategic Density &amp; Negative Space</h3>
       <ul>
-        <li>Dense areas form the &quot;island mass&quot; of investment.</li>
+        <li>Dense areas form the mass of investment.</li>
         <li>Sparse areas reveal capability gaps or deprioritized pillars.</li>
         <li>The overall shape is the strategic signature people remember.</li>
       </ul>
@@ -3168,7 +3168,7 @@ const deleteAxis = (axisId: string) => {
 
             // then snapshot the blank state
             requestAnimationFrame(() => {
-              const blank: BabyIslandSavedStateV1 = {
+              const blank: NebulaSavedStateV1 = {
                 v: 1,
                 savedAt: Date.now(),
                 title: "Untitled Strategy",
@@ -4003,7 +4003,7 @@ onPointerCancel={(e) => {
     <stop offset="100%" stopColor="rgba(157,88,255,0.60)" />
   </linearGradient>
 
-  {/* Clip so space only appears inside island boundary */}
+  {/* Clip so space only appears inside nebula field boundary */}
   <clipPath id="oceanClip">
     <circle cx={cx2} cy={cy2} r={ringLater} />
   </clipPath>
@@ -4146,24 +4146,24 @@ onPointerCancel={(e) => {
     e.stopPropagation();
 
     // Set direction BEFORE starting the animation
-    const dir = babySpinDirRef.current;
+    const dir = nebulaSpinDirRef.current;
 
     try {
       // rotate format is: "angle cx cy"
-      babySpinAnimRef.current?.setAttribute("to", `${dir * 360} ${cx2} ${cy2}`);
-      babySpinAnimRef.current?.beginElement();
+      nebulaSpinAnimRef.current?.setAttribute("to", `${dir * 360} ${cx2} ${cy2}`);
+      nebulaSpinAnimRef.current?.beginElement();
     } catch {
       // ignore
     }
 
     // Flip direction for next click
-    babySpinDirRef.current = dir === 1 ? -1 : 1;
+    nebulaSpinDirRef.current = dir === 1 ? -1 : 1;
   }}
   style={{ cursor: "pointer" }}
 >
 
   <animateTransform
-    ref={babySpinAnimRef}
+    ref={nebulaSpinAnimRef}
     attributeName="transform"
     type="rotate"
     from={`0 ${cx2} ${cy2}`}
