@@ -1821,38 +1821,8 @@ useLayoutEffect(() => {
     return acc;
   }, {} as Record<string, number>);
 
-  const axisWarnings = axes.reduce((acc, axis) => {
-    // IMPORTANT: validate within an axis using SEQUENCE order
-    const axisNodes = nodes
-      .filter((n) => n.axisId === axis.id)
-      .slice()
-      .sort((a, b) => a.sequence - b.sequence || a.label.localeCompare(b.label));
+  // axisWarnings removed — sequencing is now auto-derived from ring order + nudges + stable tie-breakers.
 
-    const warnings: string[] = [];
-
-    for (let i = 1; i < axisNodes.length; i++) {
-      const prev = axisNodes[i - 1];
-      const curr = axisNodes[i];
-
-      const prevRank = ringRank[prev.ringId] ?? 0;
-      const currRank = ringRank[curr.ringId] ?? 0;
-      if (prev.ringId === "uncommitted" || curr.ringId === "uncommitted") continue;
-
-
-      // if sequence increases but ring goes backwards, warn
-      if (currRank < prevRank) {
-        const prevRingLabel = rings.find((r) => r.id === prev.ringId)?.label ?? prev.ringId;
-        const currRingLabel = rings.find((r) => r.id === curr.ringId)?.label ?? curr.ringId;
-
-        warnings.push(
-          `Seq ${curr.sequence} (“${curr.label}”) is ${currRingLabel} but comes after a ${prevRingLabel} item (“${prev.label}”).`
-        );
-      }
-    }
-
-    if (warnings.length) acc[axis.id] = warnings;
-    return acc;
-  }, {} as Record<string, string[]>);
 
   // Move a node up/down within its AXIS order, then renumber sequence 1..N for that axis
   const moveNodeInAxis = (axisId: string, nodeId: string, direction: -1 | 1) => {
@@ -1910,19 +1880,8 @@ useLayoutEffect(() => {
   }, [autoSaveEnabled, title, subtitle, axes, rings, nodes]);
 
 
-  const getAxisOrderInfo = (axisId: string, nodeId: string) => {
-    const axisNodes = nodes
-      .filter((n) => n.axisId === axisId)
-      .slice()
-      .sort((a, b) => a.sequence - b.sequence || a.label.localeCompare(b.label));
+  // getAxisOrderInfo removed — order is auto-managed
 
-    const idx = axisNodes.findIndex((n) => n.id === nodeId);
-    return {
-      idx,
-      isFirst: idx <= 0,
-      isLast: idx === axisNodes.length - 1,
-    };
-  };
 const updateAxisLabel = (axisId: string, label: string) => {
   setAxes((prev) => prev.map((a) => (a.id === axisId ? { ...a, label } : a)));
 };
@@ -2632,16 +2591,8 @@ const deleteAxis = (axisId: string) => {
 
               <div className="nodeAxisHeader">
                 <div className="axisHeaderMain">
-                  {axisWarnings[axis.id]?.length ? (
-                    <div className="axisWarning">
-                      <div className="axisWarningTitle">Whoa buddy!</div>
-                      <ul className="axisWarningList">
-                        {axisWarnings[axis.id].map((w, idx) => (
-                          <li key={idx}>{w}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
+                                    {/* sequencing warnings removed — order is auto-managed */}
+
 
                   <input
   className="nodeAxisTitleInput"
@@ -2789,7 +2740,7 @@ const deleteAxis = (axisId: string) => {
                       ) : (
                         <div className="nodeList">
                           {ringNodes.map((n) => {
-                            const orderInfo = getAxisOrderInfo(n.axisId, n.id);
+                        
 
                             return (
                               <div
@@ -2805,13 +2756,20 @@ const deleteAxis = (axisId: string) => {
                                   <div className="nodeLabel">Node</div>
                                   <input
   value={n.label}
-  onChange={(e) =>
-    setNodes((prev) =>
-      prev.map((x) =>
-        x.id === n.id ? { ...x, label: e.target.value } : x
-      )
-    )
-  }
+onChange={(e) =>
+  setNodes((prev) => {
+    const nextRingId = e.target.value;
+
+    // Update ring
+    let draft = prev.map((x) => (x.id === n.id ? { ...x, ringId: nextRingId, rOverride: null } : x));
+
+    // Recompute sequence for this axis so ordering stays consistent
+    draft = normalizeSeqForAxis(draft, n.axisId);
+
+    return draft;
+  })
+}
+
   style={{ ...darkFieldStyle, padding: "8px 10px" }}
 />
 
@@ -2886,37 +2844,8 @@ const deleteAxis = (axisId: string) => {
                                     </select>
                                   </div>
 
-                                  <div className="nodeControl" style={{ maxWidth: 120 }}>
-                                    <div className="nodeLabel">Order</div>
+                                                                  {/* Order UI removed — order is auto-derived from ring + position */}
 
-                                    <div className="orderRow">
-                                      <button
-                                        className="orderBtn"
-                                        disabled={orderInfo.isFirst}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          moveNodeInAxis(n.axisId, n.id, -1);
-                                        }}
-                                        title={orderInfo.isFirst ? "Already first" : "Move up"}
-                                      >
-                                        ↑
-                                      </button>
-
-                                      <div className="orderIndex">{n.sequence}</div>
-
-                                      <button
-                                        className="orderBtn"
-                                        disabled={orderInfo.isLast}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          moveNodeInAxis(n.axisId, n.id, +1);
-                                        }}
-                                        title={orderInfo.isLast ? "Already last" : "Move down"}
-                                      >
-                                        ↓
-                                      </button>
-                                    </div>
-                                  </div>
 
                                   <button
                                     className="dangerBtn"
@@ -3638,6 +3567,62 @@ const ringRadiusByIdBase: Record<string, number> = {
 
 const DRAG_MAX_R = ringLater - 10; // keep inside outer circle
 
+// -------------------- Auto-sequence (single source of truth) --------------------
+// We keep `sequence` in the model for deterministic exports + ordering,
+// but we never ask the user to manage it directly.
+const normalizeSeqForAxis = (draftNodes: NodeItem[], axisId: string) => {
+  // ring order as displayed (Now=0, Next=1, Later=2, Uncommitted=last)
+  const rankByRing = rings.reduce((acc, r, i) => {
+    acc[r.id] = i;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const ringRadiusById: Record<string, number> = {
+    now: ringNow,
+    next: ringNext,
+    later: ringLater,
+    uncommitted: ringLater, // treat as outer band for ordering
+  };
+
+  // Back-compat + normalization (same rule you use elsewhere)
+  const overrideToPx = (n: NodeItem) => {
+    const v = n.rOverride;
+    if (v == null || !Number.isFinite(v)) return null;
+    return v <= 1.5 ? v * ringLater : v;
+  };
+
+  const axisNodes = draftNodes.filter((n) => n.axisId === axisId);
+
+  // Sort by:
+  // 1) ring rank (as defined by ring ordering)
+  // 2) radial position if user nudged (or base ring radius if not)
+  // 3) stable tie-breakers (existing sequence, then label)
+  const ordered = axisNodes
+    .slice()
+    .sort((a, b) => {
+      const ar = rankByRing[a.ringId] ?? 9999;
+      const br = rankByRing[b.ringId] ?? 9999;
+      if (ar !== br) return ar - br;
+
+      const apx = overrideToPx(a) ?? ringRadiusById[a.ringId] ?? ringLater;
+      const bpx = overrideToPx(b) ?? ringRadiusById[b.ringId] ?? ringLater;
+      if (apx !== bpx) return apx - bpx;
+
+      if ((a.sequence ?? 0) !== (b.sequence ?? 0)) return (a.sequence ?? 0) - (b.sequence ?? 0);
+      return String(a.label ?? "").localeCompare(String(b.label ?? ""));
+    });
+
+  const nextSeqById = ordered.reduce((acc, n, i) => {
+    acc[n.id] = i + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  return draftNodes.map((n) =>
+    n.axisId === axisId ? { ...n, sequence: nextSeqById[n.id] ?? n.sequence } : n
+  );
+};
+
+
 function clientToSvgPoint(clientX: number, clientY: number): { x: number; y: number } {
   const rect = stageRef.current?.getBoundingClientRect();
   if (!rect) return { x: cx2, y: cy2 };
@@ -3834,41 +3819,39 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
   const nextAxisId = snapAxisIdFromPoint(finalPos.x, finalPos.y);
   const nextRingId = snapRingIdFromRadius(nextAxisId, dropR);
 
-  setNodes((prev) => {
-  const moving = prev.find((x) => x.id === nodeId);
-  if (!moving) return prev;
+   setNodes((prev) => {
+    const moving = prev.find((x) => x.id === nodeId);
+    if (!moving) return prev;
 
-  const axisChanged = moving.axisId !== nextAxisId;
-  const ringChanged = moving.ringId !== nextRingId;
+    const axisChanged = moving.axisId !== nextAxisId;
+    const ringChanged = moving.ringId !== nextRingId;
 
-  // If you stay on same axis+ring, store manual radial position.
-  // If you change axis or ring, clear it.
-  const nextOverride =
-    axisChanged || ringChanged ? null : dropR / ringLater; // normalized 0..1 of ringLater
+    // If you stay on same axis+ring, store manual radial position.
+    // If you change axis or ring, clear it.
+    const nextOverride =
+      axisChanged || ringChanged ? null : dropR / ringLater; // normalized 0..1 of ringLater
 
-  // Minimal sequence logic:
-  // - If staying in same axis+ring, keep sequence.
-  // - If moving axis or ring, append to end of that axis+ring.
-  let nextSeq = moving.sequence;
-  if (axisChanged || ringChanged) {
-    const maxSeq = prev
-      .filter((x) => x.axisId === nextAxisId && x.ringId === nextRingId)
-      .reduce((m, x) => Math.max(m, x.sequence), 0);
-    nextSeq = maxSeq + 1;
-  }
+    // Apply the move
+    let draft = prev.map((x) =>
+      x.id === nodeId
+        ? {
+            ...x,
+            axisId: nextAxisId,
+            ringId: nextRingId,
+            rOverride: nextOverride,
+          }
+        : x
+    );
 
-  return prev.map((x) =>
-    x.id === nodeId
-      ? {
-          ...x,
-          axisId: nextAxisId,
-          ringId: nextRingId,
-          sequence: nextSeq,
-          rOverride: nextOverride,
-        }
-      : x
-  );
-});
+    // Auto-sequence:
+    // - Always normalize the destination axis
+    // - If axis changed, normalize the source axis too
+    draft = normalizeSeqForAxis(draft, nextAxisId);
+    if (axisChanged) draft = normalizeSeqForAxis(draft, moving.axisId);
+
+    return draft;
+  });
+
 
 
   // Selection should follow the dragged node (but don’t scroll)
