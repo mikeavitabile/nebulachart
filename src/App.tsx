@@ -970,6 +970,28 @@ const expandAxis = (axisId: string) => {
   setExpandedAxisIds((prev) => (prev[axisId] ? prev : { ...prev, [axisId]: true }));
 };
 
+// Always ensure the left pane is open + the axis is expanded before scrolling.
+const scrollLeftPaneToNode = (nodeId: string) => {
+  // If the left panel is hidden (presentation mode), do nothing.
+  if (leftCollapsed) return;
+
+  const n = nodes.find((x) => x.id === nodeId);
+  if (!n) return;
+
+  // 1) Ensure the Axes & Nodes section is open so rows exist in the DOM
+  setNodesOpen(true);
+
+  // 2) Ensure the correct axis is expanded
+  expandAxis(n.axisId);
+
+  // 3) Wait for the DOM to render the row, then scroll it into view
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const el = nodeRowRefs.current[nodeId];
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
+};
 
 const [leftCollapsed, setLeftCollapsed] = useState(false);
 const [guidebookOpen, setGuidebookOpen] = useState(false);
@@ -2744,16 +2766,34 @@ const deleteAxis = (axisId: string) => {
 
                             return (
                               <div
-                                key={n.id}
-                                className={`nodeRow ${selectedNodeId === n.id ? "nodeRowSelected" : ""}`}
-                                ref={(el) => {
-                                  nodeRowRefs.current[n.id] = el;
-                                }}
-                                onClick={() => setSelectedNodeId(n.id)}
-                                style={{ cursor: "pointer" }}
-                              >
+  key={n.id}
+  className={`nodeRow ${selectedNodeId === n.id ? "nodeRowSelected" : ""}`}
+  ref={(el) => {
+    nodeRowRefs.current[n.id] = el;
+  }}
+  onClick={() => setSelectedNodeId(n.id)}
+  style={{
+    cursor: "pointer",
+    background: "rgba(0,0,0,0.40)",
+    borderRadius: 14,
+    padding: 12,
+    border: "1px solid rgba(255,255,255,0.18)",
+    color: "rgba(255,255,255,0.92)",
+    boxShadow: `
+      0 0 0 1px rgba(255,255,255,0.06) inset,
+      0 0 18px rgba(157,88,255,0.35),
+      0 0 36px rgba(255,79,160,0.20),
+      0 18px 40px rgba(0,0,0,0.45)
+    `,
+    backdropFilter: "blur(10px)",
+  }}
+>
+
                                 <div className="nodeMeta">
-                                  <div className="nodeLabel">Node</div>
+                                  <div className="nodeLabel" style={{ color: "rgba(255,255,255,0.65)", letterSpacing: 0.6 }}>
+  Node
+</div>
+
                                   <input
   value={n.label}
 onChange={(e) =>
@@ -2823,7 +2863,10 @@ onChange={(e) =>
 
                                 <div className="nodeControls">
                                   <div className="nodeControl">
-                                    <div className="nodeLabel">Ring</div>
+                                    <div className="nodeLabel" style={{ color: "rgba(255,255,255,0.65)", letterSpacing: 0.6 }}>
+  Ring
+</div>
+
                                    <select
   value={n.ringId}
   onChange={(e) =>
@@ -3791,20 +3834,15 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
   // Selection is handled in onPointerDown (and can toggle off), so we must NOT re-select here.
   if (!nodeId) return;
   if (!dragged) {
-    const n = nodes.find((x) => x.id === nodeId);
-    if (n) {
-      // Only expand + scroll if the node is still selected
-      // (prevents expanding/scrolling when user is deselecting)
-      if (selectedNodeId === n.id) {
-        expandAxis(n.axisId);
-        const el = nodeRowRefs.current[n.id];
-        el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+    // Only expand + scroll if the node is still selected
+    // (prevents expanding/scrolling when user is deselecting)
+    if (selectedNodeId === nodeId) {
+      scrollLeftPaneToNode(nodeId);
     }
+
     didDragRef.current = false;
     return;
   }
-
 
   // If it was a drag, snap + update node (no click scroll spam)
   if (!finalPos) {
