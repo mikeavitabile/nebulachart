@@ -2803,7 +2803,7 @@ onChange={(e) =>
     // Update ring
     let draft = prev.map((x) => (x.id === n.id ? { ...x, ringId: nextRingId, rOverride: null } : x));
 
-    // Recompute sequence for this axis so the ordering stays consistent
+    // Recompute the sequence for this axis so the ordering stays consistent
     draft = normalizeSeqForAxis(draft, n.axisId);
 
     return draft;
