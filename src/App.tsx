@@ -105,7 +105,9 @@ type NodeItem = {
   sequence: number;
   wrapWidth?: number | null; // optional per-node label wrap (px)
   rOverride?: number | null; // optional manual radial position (px from center)
+  complete?: boolean;        // ✅ new: node is done
 };
+
 
 // Built-in snapshot templates (module-scope so they’re safe to reference)
 const BUILTIN_BLANK_SNAPSHOT: NebulaSnapshotV1 = {
@@ -234,31 +236,8 @@ function writeSnapshots(next: NebulaSnapshotV1[]) {
   localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(next));
 }
 
-// Ensure a Blank Island snapshot exists (and return updated list)
-function ensureBlankSnapshot(existing: NebulaSnapshotV1[]) {
-  const hasBlank = existing.some((s) => s.id === "builtin-blank");
-  if (hasBlank) return existing;
+// (removed) ensureBlankSnapshot() — it referenced App-scoped constants (BLANK_AXES / DEFAULT_RINGS / BLANK_NODES)
 
-  const now = Date.now();
-  const blank: NebulaSnapshotV1 = {
-    id: "builtin-blank",
-    name: "Blank Nebula",
-    createdAt: now,
-    updatedAt: now,
-    state: {
-      v: 1,
-      savedAt: now,
-      title: "Untitled Strategy",
-      subtitle: "",
-      axes: BLANK_AXES,
-      rings: DEFAULT_RINGS,
-      nodes: BLANK_NODES,
-    },
-  };
-
-  // Put blank FIRST so it becomes the default
-  return [blank, ...existing];
-}
 
 
 // -------------------- Export helpers --------------------
@@ -794,6 +773,10 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const nodeRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [showNodeLabels, setShowNodeLabels] = useState(true);
   const [showNodes, setShowNodes] = useState(true);
+
+  // ✅ new: hide completed nodes/labels on the chart
+  const [hideCompleted, setHideCompleted] = useState(false);
+
   const [nodeTooltip, setNodeTooltip] = useState<{ x: number; y: number; text: string } | null>(
     null
   );
@@ -2775,6 +2758,8 @@ const deleteAxis = (axisId: string) => {
   style={{
     cursor: "pointer",
     background: "rgba(0,0,0,0.40)",
+    opacity: n.complete ? 0.72 : 1,
+
     borderRadius: 14,
     padding: 12,
     border: "1px solid rgba(255,255,255,0.18)",
@@ -2820,6 +2805,20 @@ onChange={(e) =>
   <label className="viewToggle" style={{ margin: 0 }}>
     <input
       type="checkbox"
+      checked={!!n.complete}
+      onChange={(e) => {
+        const on = e.target.checked;
+        setNodes((prev) =>
+          prev.map((x) => (x.id === n.id ? { ...x, complete: on } : x))
+        );
+      }}
+    />
+    <span>Complete</span>
+  </label>
+
+  <label className="viewToggle" style={{ margin: 0 }}>
+    <input
+      type="checkbox"
       checked={!!n.wrapWidth}
       onChange={(e) => {
         const on = e.target.checked;
@@ -2837,6 +2836,7 @@ onChange={(e) =>
 
   <span className="muted" style={{ fontSize: 12, fontWeight: 700 }}>W</span>
   <input
+
   type="text"
   inputMode="numeric"
   pattern="[0-9]*"
@@ -3430,7 +3430,17 @@ onChange={(e) =>
                       Nodes
                     </button>
 
+                    <button
+                      type="button"
+                      style={ringMasterBtnStyle(hideCompleted)}
+                      onClick={() => setHideCompleted((v) => !v)}
+                      title="Hide completed items (nodes + labels) on the chart"
+                    >
+                      Hide Complete
+                    </button>
+
                   </div>
+
 
 
 
@@ -3561,7 +3571,17 @@ onChange={(e) =>
                 Nodes
               </button>
 
+              <button
+                type="button"
+                style={ringMasterBtnStyle(hideCompleted)}
+                onClick={() => setHideCompleted((v) => !v)}
+                title="Hide completed items (nodes + labels) on the chart"
+              >
+                Hide Complete
+              </button>
+
             </div>
+
 
           </div>
         </div>
@@ -3598,6 +3618,10 @@ const axisAngleOffset =
   axes.length === 4 ? Math.PI / 4 :
   axes.length === 8 ? Math.PI / 8 :
   0;
+
+// ✅ Chart-only filtering: when hiding completed, remove them from blobs + dots + labels
+const chartNodes = hideCompleted ? nodes.filter((n) => !n.complete) : nodes;
+
 
 
 
@@ -4041,7 +4065,7 @@ onPointerCancel={(e) => {
 </g>
 
 
-
+{/* ✅ Chart-only filtering is computed above as `chartNodes` */}
 
 
 {/* --- Blobs (animated): cumulative per ring, tied to furthest DOT per axis --- */}
@@ -4049,7 +4073,7 @@ onPointerCancel={(e) => {
   <BlobLayer
     axes={axes}
     rings={rings}
-    nodes={nodes}
+    nodes={chartNodes}
     cx2={cx2}
     cy2={cy2}
     ringNow={ringNow}
@@ -4060,6 +4084,7 @@ onPointerCancel={(e) => {
     showLaterBlob={showLaterBlob}
   />
 ) : null}
+
 
 
 
@@ -4219,10 +4244,11 @@ onPointerCancel={(e) => {
 
                         const angle = axisAngleOffset + (-Math.PI / 2 + (axisIndex * 2 * Math.PI) / axes.length);
 
-                        const axisNodes = nodes
+                        const axisNodes = chartNodes
                           .filter((n) => n.axisId === axis.id)
                           .slice()
                           .sort((a, b) => a.sequence - b.sequence || a.label.localeCompare(b.label));
+
 
                         const count = axisNodes.length;
 
@@ -4350,6 +4376,7 @@ const x = isDraggingThis ? dragPos!.x : baseX;
 const y = isDraggingThis ? dragPos!.y : baseY;
 
 const isSelected = selectedNodeId === n.id;
+const isComplete = !!n.complete;
 
 
                           return (
@@ -4432,6 +4459,8 @@ const isSelected = selectedNodeId === n.id;
   cx={x}
   cy={y}
   r={isSelected ? 9 : 6}
+  opacity={isComplete ? 0.55 : 1}
+
   fill={
     isSelected
       ? "rgba(255,255,255,0.14)"
