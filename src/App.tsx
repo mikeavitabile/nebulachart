@@ -3619,8 +3619,11 @@ const axisAngleOffset =
   axes.length === 8 ? Math.PI / 8 :
   0;
 
-// ✅ Chart-only filtering: when hiding completed, remove them from blobs + dots + labels
-const chartNodes = hideCompleted ? nodes.filter((n) => !n.complete) : nodes;
+// ✅ Chart behavior:
+// - Blob geometry should ALWAYS be computed from ALL nodes (so the shape is stable).
+// - Hide Complete should ONLY affect rendering of dots + labels (presentation), not the blob math.
+const blobNodes = nodes;
+const visibleNodes = hideCompleted ? nodes.filter((n) => !n.complete) : nodes;
 
 
 
@@ -4065,7 +4068,7 @@ onPointerCancel={(e) => {
 </g>
 
 
-{/* ✅ Chart-only filtering is computed above as `chartNodes` */}
+{/* ✅ Blob geometry uses ALL nodes (stable shape). Rendering uses `visibleNodes`. */}
 
 
 {/* --- Blobs (animated): cumulative per ring, tied to furthest DOT per axis --- */}
@@ -4073,7 +4076,7 @@ onPointerCancel={(e) => {
   <BlobLayer
     axes={axes}
     rings={rings}
-    nodes={chartNodes}
+    nodes={blobNodes}
     cx2={cx2}
     cy2={cy2}
     ringNow={ringNow}
@@ -4084,8 +4087,6 @@ onPointerCancel={(e) => {
     showLaterBlob={showLaterBlob}
   />
 ) : null}
-
-
 
 
 
@@ -4244,10 +4245,10 @@ onPointerCancel={(e) => {
 
                         const angle = axisAngleOffset + (-Math.PI / 2 + (axisIndex * 2 * Math.PI) / axes.length);
 
-                        const axisNodes = chartNodes
-                          .filter((n) => n.axisId === axis.id)
-                          .slice()
-                          .sort((a, b) => a.sequence - b.sequence || a.label.localeCompare(b.label));
+                        const axisNodes = visibleNodes
+  .filter((n) => n.axisId === axis.id)
+  .slice()
+  .sort((a, b) => a.sequence - b.sequence || a.label.localeCompare(b.label));
 
 
                         const count = axisNodes.length;
