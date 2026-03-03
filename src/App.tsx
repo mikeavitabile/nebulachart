@@ -749,7 +749,14 @@ const clampTooltipToStage = (x: number, y: number) => {
   };
 };
 
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+ const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
+// ✅ Always-accurate selection for pointer handlers (avoids stale state in onPointerUp)
+const selectedNodeIdRef = useRef<string | null>(null);
+
+useLayoutEffect(() => {
+  selectedNodeIdRef.current = selectedNodeId;
+}, [selectedNodeId]);
   const nebulaSpinAnimRef = useRef<SVGAnimateTransformElement | null>(null);
 const nebulaSpinDirRef = useRef<1 | -1>(1); // 1 = clockwise, -1 = counter-clockwise
 
@@ -2754,7 +2761,10 @@ const deleteAxis = (axisId: string) => {
   ref={(el) => {
     nodeRowRefs.current[n.id] = el;
   }}
-  onClick={() => setSelectedNodeId(n.id)}
+  onClick={() => {
+  selectedNodeIdRef.current = n.id;
+  setSelectedNodeId(n.id);
+}}
   style={{
     cursor: "pointer",
     background: "rgba(0,0,0,0.40)",
@@ -2779,22 +2789,12 @@ const deleteAxis = (axisId: string) => {
   Node
 </div>
 
-                                  <input
-  value={n.label}
-onChange={(e) =>
-  setNodes((prev) => {
-    const nextRingId = e.target.value;
-
-    // Update ring
-    let draft = prev.map((x) => (x.id === n.id ? { ...x, ringId: nextRingId, rOverride: null } : x));
-
-    // Recompute the sequence for this axis so the ordering stays consistent
-    draft = normalizeSeqForAxis(draft, n.axisId);
-
-    return draft;
-  })
-}
-
+<input
+  value={n.label ?? ""}
+  onChange={(e) => {
+    const nextLabel = e.target.value;
+    setNodes((prev) => prev.map((x) => (x.id === n.id ? { ...x, label: nextLabel } : x)));
+  }}
   style={{ ...darkFieldStyle, padding: "8px 10px" }}
 />
 
@@ -3863,9 +3863,9 @@ function pointerEndDrag(e: React.PointerEvent<SVGSVGElement>) {
   if (!dragged) {
     // Only expand + scroll if the node is still selected
     // (prevents expanding/scrolling when user is deselecting)
-    if (selectedNodeId === nodeId) {
-      scrollLeftPaneToNode(nodeId);
-    }
+if (selectedNodeIdRef.current === nodeId) {
+  scrollLeftPaneToNode(nodeId);
+}
 
     didDragRef.current = false;
     return;
@@ -4408,12 +4408,14 @@ const isComplete = !!n.complete;
 
   lastPointerDownRef.current = { id: n.id, t: now };
 
-  // Normal behavior: toggle select + allow dragging
-  setSelectedNodeId((prev) => {
-    const next = prev === n.id ? null : n.id;
-    if (next) expandAxis(n.axisId);
-    return next;
-  });
+// Normal behavior: toggle select + allow dragging
+const nextSelected = selectedNodeIdRef.current === n.id ? null : n.id;
+
+// update ref immediately so pointerUp can read the right value
+selectedNodeIdRef.current = nextSelected;
+
+setSelectedNodeId(nextSelected);
+if (nextSelected) expandAxis(n.axisId);
 
 
   activePointerIdRef.current = e.pointerId;
