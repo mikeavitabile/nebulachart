@@ -71,3 +71,15 @@ export default defineConfig([
   },
 ])
 ```
+
+## Cloud accounts (phase 1)
+
+1. Create a Supabase project. In **SQL Editor**, run [supabase.sql](supabase.sql) once. The table's row-level policies limit each Nebula to its owner.
+2. In **Authentication → Providers**, enable Email and choose the email link / OTP flow. In **Authentication → URL Configuration**, add your deployed site URL to redirect URLs; add `http://localhost:5173/**` for local testing.
+3. Copy `.env.example` to `.env.local`. Fill in your Supabase project URL and **publishable/anon key** from the project API settings. Never put a service role or secret key in a `VITE_` variable.
+4. Run `npm install` and `npm run dev`. For the hosted site, add the same two `VITE_` environment variables in the hosting dashboard and redeploy.
+5. Enter your email in the Admin panel and open the emailed sign-in link. New accounts start with an empty cloud list. Click **Import browser Nebulas** once to copy existing local charts into the account. The browser originals remain untouched. Duplicate imports make additional copies.
+
+Cloud accounts autosave edits. A failed cloud save displays an error in the Admin panel; save again after fixing the connection. Manual Save, Save As, rename, duplicate, and delete sync to cloud. Signing out switches back to this browser's original local chart list. Without the two environment variables, the existing local-only app runs as before.
+
+This phase supports one account editing a Nebula at a time. Sharing and simultaneous editing are future phases. Don't work on the same Nebula in two open tabs at once; the latest full-document save wins.

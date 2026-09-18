@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { cloud, listCloudSnapshots, putCloudSnapshot, removeCloudSnapshot } from "./cloud";
 
 import babyImg from "./assets/star-2.png";
 import "./App.css";
@@ -862,6 +863,13 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const [nebulaSpin, setNebulaSpin] = useState(0);
   const [snapshots, setSnapshots] = useState<NebulaSnapshotV1[]>([]);
   const [activeSnapshotId, setActiveSnapshotId] = useState<string | null>(null);
+  const [cloudEmail, setCloudEmail] = useState<string | null>(null);
+  const [emailInput, setEmailInput] = useState("");
+  const [cloudStatus, setCloudStatus] = useState("");
+  const [cloudLoading, setCloudLoading] = useState(false);
+  const cloudUserRef = useRef<string | null>(null);
+  const cloudQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const authGenerationRef = useRef(0);
    const [copiedAt, setCopiedAt] = useState<number | null>(null);
 
   // --- Inline node label edit (presentation mode) ---
@@ -1289,6 +1297,99 @@ wrapWidth: null,
     if (kind === "csv") exportAsCsv();
   };
 
+  const queueCloudWrite = (task: () => Promise<void>) => {
+    setCloudStatus("Saving to cloud…");
+    cloudQueueRef.current = cloudQueueRef.current.catch(() => {}).then(task).then(
+      () => setCloudStatus("Saved to cloud"),
+      (error) => {
+        console.error("Cloud save failed:", error);
+        setCloudStatus(`Cloud save failed: ${error.message || String(error)}. Retry by saving again.`);
+      }
+    );
+  };
+
+  const persistSnapshot = (snapshot: NebulaSnapshotV1) => {
+    const userId = cloudUserRef.current;
+    if (userId) queueCloudWrite(() => putCloudSnapshot(userId, snapshot));
+  };
+
+  const activateCloudAccount = async (userId: string | null, email: string | null) => {
+    if (userId && userId === cloudUserRef.current) return;
+    const generation = ++authGenerationRef.current;
+    hasHydratedRef.current = false;
+    if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+    setCloudLoading(true);
+    setCloudStatus(userId ? "Loading cloud Nebulas…" : "");
+    try {
+      // Finish pending writes before replacing the account's chart list.
+      await cloudQueueRef.current;
+      if (generation !== authGenerationRef.current) return;
+      const next = userId ? await listCloudSnapshots<NebulaSavedStateV1>() : readSnapshots();
+      if (generation !== authGenerationRef.current) return;
+      cloudUserRef.current = userId;
+      setCloudEmail(email);
+      if (userId) setAutoSaveEnabled(true);
+      setSnapshots(next);
+      const preferredId = getStrategyIdFromUrl() || localStorage.getItem(ACTIVE_SNAPSHOT_KEY);
+      const initial = next.find((s) => s.id === preferredId) || next[0];
+      setActiveSnapshotId(initial?.id ?? null);
+      setStrategyIdInUrl(initial?.id ?? null);
+      if (initial) loadSnapshotIntoState(initial);
+      else resetWorkingState();
+      setCloudStatus(userId ? "Cloud ready" : "");
+    } catch (error) {
+      console.error("Cloud load failed:", error);
+      setCloudStatus(`Cloud load failed: ${error instanceof Error ? error.message : String(error)}`);
+      // Keep local charts visible when the cloud is unavailable.
+    } finally {
+      if (generation === authGenerationRef.current) {
+        hasHydratedRef.current = true;
+        setCloudLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!cloud) return;
+    const { data: { subscription } } = cloud.auth.onAuthStateChange((event, session) => {
+      if (event === "TOKEN_REFRESHED") return;
+      // Supabase recommends deferring other client calls from auth callbacks.
+      window.setTimeout(() => { void activateCloudAccount(session?.user.id ?? null, session?.user.email ?? null); }, 0);
+    });
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const sendSignInLink = async () => {
+    if (!cloud) return;
+    setCloudStatus("Sending sign-in link…");
+    const { error } = await cloud.auth.signInWithOtp({
+      email: emailInput.trim(),
+      options: { emailRedirectTo: window.location.origin + window.location.pathname },
+    });
+    setCloudStatus(error ? error.message : "Check your email for the sign-in link.");
+  };
+
+  const signOutOfCloud = async () => {
+    if (!cloud) return;
+    await cloudQueueRef.current;
+    const { error } = await cloud.auth.signOut();
+    if (error) setCloudStatus(error.message);
+  };
+
+  const importLocalSnapshots = () => {
+    const local = readSnapshots();
+    if (!local.length) { setCloudStatus("No browser Nebulas to import."); return; }
+    const now = Date.now();
+    const imported = local.map((s, index) => ({
+      ...s, id: crypto.randomUUID(), name: s.name,
+      createdAt: now + index, updatedAt: now + index,
+    }));
+    setSnapshots((prev) => [...imported, ...prev]);
+    imported.forEach(persistSnapshot);
+    setCloudStatus(`Importing ${imported.length} browser Nebulas…`);
+  };
+
 
 
   const loadSnapshotIntoState = (snap: NebulaSnapshotV1) => {
@@ -1321,7 +1422,10 @@ wrapWidth: null,
           };
         });
         try {
-          writeSnapshots(next);
+          if (cloudUserRef.current) {
+            const changed = next.find((sn) => sn.id === activeSnapshotId);
+            if (changed) persistSnapshot(changed);
+          } else writeSnapshots(next);
           localStorage.setItem(ACTIVE_SNAPSHOT_KEY, activeSnapshotId);
         } catch (e) {
           console.warn("Snapshot save failed:", e);
@@ -1352,7 +1456,8 @@ wrapWidth: null,
     setSnapshots((prev) => {
       const next = [snap, ...prev];
       try {
-        writeSnapshots(next);
+        if (cloudUserRef.current) persistSnapshot(snap);
+        else writeSnapshots(next);
       } catch (e) {
         console.warn("Create snapshot failed:", e);
       }
@@ -1393,7 +1498,10 @@ setLastSavedAt(snap.state.savedAt);
     setSnapshots((prev) => {
       const next = prev.map((sn) => (sn.id === id ? { ...sn, name: nextName } : sn));
       try {
-        writeSnapshots(next);
+        if (cloudUserRef.current) {
+          const changed = next.find((sn) => sn.id === id);
+          if (changed) persistSnapshot(changed);
+        } else writeSnapshots(next);
       } catch (e) {
         console.warn("Rename failed:", e);
       }
@@ -1405,7 +1513,8 @@ setLastSavedAt(snap.state.savedAt);
     setSnapshots((prev) => {
       const next = prev.filter((sn) => sn.id !== id);
       try {
-        writeSnapshots(next);
+        if (cloudUserRef.current) queueCloudWrite(() => removeCloudSnapshot(id));
+        else writeSnapshots(next);
       } catch (e) {
         console.warn("Delete failed:", e);
       }
@@ -1454,7 +1563,8 @@ setLastSavedAt(snap.state.savedAt);
     setSnapshots((prev) => {
       const next = [copy, ...prev];
       try {
-        writeSnapshots(next);
+        if (cloudUserRef.current) persistSnapshot(copy);
+        else writeSnapshots(next);
       } catch (e) {
         console.warn("Duplicate failed:", e);
       }
@@ -2927,9 +3037,35 @@ const deleteAxis = (axisId: string) => {
       marginTop: 14,
     }}
   >
-    <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+  <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
       Admin
     </div>
+
+    {cloud && (
+      <div style={{ padding: 12, border: "1px solid #ffffff33", borderRadius: 8, marginBottom: 14 }}>
+        {cloudEmail ? (
+          <>
+            <div>Signed in as {cloudEmail}</div>
+            <button type="button" onClick={() => void signOutOfCloud()}>Sign out</button>
+            <button type="button" onClick={importLocalSnapshots} disabled={cloudLoading}
+              title="Copy this browser's saved Nebulas into your cloud account">
+              Import browser Nebulas
+            </button>
+          </>
+        ) : (
+          <>
+            <div>Cloud account</div>
+            <input type="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)}
+              placeholder="Email address" aria-label="Email address" />
+            <button type="button" onClick={() => void sendSignInLink()} disabled={!emailInput.trim() || cloudLoading}>
+              Email me a sign-in link
+            </button>
+            <div className="muted">Your current browser Nebulas stay here until you import them.</div>
+          </>
+        )}
+        <div role="status" className="muted">{cloudStatus}</div>
+      </div>
+    )}
 
     {/* Strategy dropdown + name + copy link */}
     <div
