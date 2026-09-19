@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const url = import.meta.env.VITE_SUPABASE_URL || "https://qsehetrwveilpibjkbta.supabase.co";
+const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_0j9R1FouJSW3u8r5m-vNkA_JNkYI360";
 export const cloud = url && key ? createClient(url, key) : null;
 
 export type CloudSnapshot<T> = {
