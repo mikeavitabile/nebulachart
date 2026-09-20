@@ -864,6 +864,7 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const [snapshots, setSnapshots] = useState<NebulaSnapshotV1[]>([]);
   const [activeSnapshotId, setActiveSnapshotId] = useState<string | null>(null);
   const [cloudEmail, setCloudEmail] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [cloudStatus, setCloudStatus] = useState("");
   const [cloudLoading, setCloudLoading] = useState(false);
@@ -1324,7 +1325,7 @@ wrapWidth: null,
       // Finish pending writes before replacing the account's chart list.
       await cloudQueueRef.current;
       if (generation !== authGenerationRef.current) return;
-      const next = userId ? await listCloudSnapshots<NebulaSavedStateV1>() : readSnapshots();
+      const next = userId ? await listCloudSnapshots<NebulaSavedStateV1>() : [];
       if (generation !== authGenerationRef.current) return;
       cloudUserRef.current = userId;
       setCloudEmail(email);
@@ -1345,6 +1346,7 @@ wrapWidth: null,
       if (generation === authGenerationRef.current) {
         hasHydratedRef.current = true;
         setCloudLoading(false);
+        setAuthReady(true);
       }
     }
   };
@@ -1376,21 +1378,6 @@ wrapWidth: null,
     const { error } = await cloud.auth.signOut();
     if (error) setCloudStatus(error.message);
   };
-
-  const importLocalSnapshots = () => {
-    const local = readSnapshots();
-    if (!local.length) { setCloudStatus("No browser Nebulas to import."); return; }
-    const now = Date.now();
-    const imported = local.map((s, index) => ({
-      ...s, id: crypto.randomUUID(), name: s.name,
-      createdAt: now + index, updatedAt: now + index,
-    }));
-    setSnapshots((prev) => [...imported, ...prev]);
-    imported.forEach(persistSnapshot);
-    setCloudStatus(`Importing ${imported.length} browser Nebulas…`);
-  };
-
-
 
   const loadSnapshotIntoState = (snap: NebulaSnapshotV1) => {
     const s = snap.state;
@@ -2131,6 +2118,90 @@ const deleteAxis = (axisId: string) => {
 };
 
 
+  if (!authReady || !cloudEmail) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          padding: 24,
+          background: "#05050d",
+          color: "rgba(245,247,255,0.96)",
+        }}
+      >
+        <main
+          style={{
+            width: "min(420px, 100%)",
+            padding: "36px 32px",
+            border: "1px solid rgba(255,255,255,0.14)",
+            borderRadius: 20,
+            background: "rgba(14,14,25,0.94)",
+            boxShadow: "0 28px 80px rgba(0,0,0,0.45)",
+          }}
+        >
+          <div style={{ fontSize: 34, fontWeight: 850, letterSpacing: -1 }}>Nebula</div>
+          <p style={{ margin: "8px 0 28px", color: "rgba(245,247,255,0.58)", lineHeight: 1.5 }}>
+            A visual system for shaping strategy
+          </p>
+
+          {!authReady ? (
+            <div style={{ color: "rgba(245,247,255,0.65)" }}>Checking your account…</div>
+          ) : (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void sendSignInLink();
+              }}
+            >
+              <label htmlFor="nebula-sign-in-email" style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>
+                Sign in to continue
+              </label>
+              <input
+                id="nebula-sign-in-email"
+                type="email"
+                required
+                autoComplete="email"
+                value={emailInput}
+                onChange={(event) => setEmailInput(event.target.value)}
+                placeholder="Email address"
+                style={{
+                  boxSizing: "border-box",
+                  width: "100%",
+                  padding: "13px 14px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  background: "rgba(0,0,0,0.28)",
+                  color: "inherit",
+                  fontSize: 16,
+                }}
+              />
+              <button
+                type="submit"
+                disabled={!emailInput.trim() || cloudLoading}
+                style={{
+                  width: "100%",
+                  marginTop: 12,
+                  padding: "13px 16px",
+                  border: 0,
+                  borderRadius: 10,
+                  fontSize: 16,
+                  fontWeight: 800,
+                  cursor: emailInput.trim() && !cloudLoading ? "pointer" : "default",
+                }}
+              >
+                Email me a sign-in link
+              </button>
+              <p role="status" style={{ minHeight: 24, margin: "14px 0 0", color: "rgba(245,247,255,0.62)", lineHeight: 1.45 }}>
+                {cloudStatus || "No password needed. We’ll email you a secure link."}
+              </p>
+            </form>
+          )}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className={`appShell ${leftCollapsed ? "noTopHeader" : ""}`}>
       {!leftCollapsed && (
@@ -2148,7 +2219,16 @@ const deleteAxis = (axisId: string) => {
       Guidebook
     </button>
 
-    <div style={{ marginLeft: "auto" }}>
+    <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+      <span className="muted" style={{ fontSize: 12 }} title={cloudEmail}>
+        {cloudEmail}
+      </span>
+      <button type="button" className="smallBtn" onClick={() => void signOutOfCloud()}>
+        Sign out
+      </button>
+    </div>
+
+    <div>
       <button
         className="smallBtn"
         onClick={() => setLeftCollapsed((v) => !v)}
@@ -3040,32 +3120,6 @@ const deleteAxis = (axisId: string) => {
   <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
       Admin
     </div>
-
-    {cloud && (
-      <div style={{ padding: 12, border: "1px solid #ffffff33", borderRadius: 8, marginBottom: 14 }}>
-        {cloudEmail ? (
-          <>
-            <div>Signed in as {cloudEmail}</div>
-            <button type="button" onClick={() => void signOutOfCloud()}>Sign out</button>
-            <button type="button" onClick={importLocalSnapshots} disabled={cloudLoading}
-              title="Copy this browser's saved Nebulas into your cloud account">
-              Import browser Nebulas
-            </button>
-          </>
-        ) : (
-          <>
-            <div>Cloud account</div>
-            <input type="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)}
-              placeholder="Email address" aria-label="Email address" />
-            <button type="button" onClick={() => void sendSignInLink()} disabled={!emailInput.trim() || cloudLoading}>
-              Email me a sign-in link
-            </button>
-            <div className="muted">Your current browser Nebulas stay here until you import them.</div>
-          </>
-        )}
-        <div role="status" className="muted">{cloudStatus}</div>
-      </div>
-    )}
 
     {/* Strategy dropdown + name + copy link */}
     <div
