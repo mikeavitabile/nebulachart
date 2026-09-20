@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { cloud, listCloudSnapshots, putCloudSnapshot, removeCloudSnapshot } from "./cloud";
+import { cloud, listCloudSnapshots, putCloudSnapshot, removeCloudSnapshot, listNebulaShares, shareNebula, unshareNebula, type NebulaShare, type CloudAccess } from "./cloud";
 
 import babyImg from "./assets/star-2.png";
 import "./App.css";
@@ -184,6 +184,9 @@ type NebulaSnapshotV1 = {
   createdAt: number;
   updatedAt: number;
   state: NebulaSavedStateV1;
+  ownerId?: string;
+  ownerEmail?: string;
+  access?: CloudAccess;
 };
 
 
@@ -869,6 +872,10 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const [emailInput, setEmailInput] = useState("");
   const [cloudStatus, setCloudStatus] = useState("");
   const [cloudLoading, setCloudLoading] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareEmail, setShareEmail] = useState("");
+  const [sharePermission, setSharePermission] = useState<'view' | 'edit'>('view');
+  const [shares, setShares] = useState<NebulaShare[]>([]);
   const cloudUserRef = useRef<string | null>(null);
   const cloudQueueRef = useRef<Promise<void>>(Promise.resolve());
   const authGenerationRef = useRef(0);
@@ -1312,7 +1319,7 @@ wrapWidth: null,
 
   const persistSnapshot = (snapshot: NebulaSnapshotV1) => {
     const userId = cloudUserRef.current;
-    if (userId) queueCloudWrite(() => putCloudSnapshot(userId, snapshot));
+    if (userId && cloudEmail && snapshot.access !== 'view') queueCloudWrite(() => putCloudSnapshot(userId, cloudEmail, snapshot));
   };
 
   const activateCloudAccount = async (userId: string | null, email: string | null) => {
@@ -1326,7 +1333,7 @@ wrapWidth: null,
       // Finish pending writes before replacing the account's chart list.
       await cloudQueueRef.current;
       if (generation !== authGenerationRef.current) return;
-      const next = userId ? await listCloudSnapshots<NebulaSavedStateV1>() : [];
+      const next = userId && email ? await listCloudSnapshots<NebulaSavedStateV1>(userId, email) : [];
       if (generation !== authGenerationRef.current) return;
       cloudUserRef.current = userId;
       setCloudEmail(email);
@@ -1393,8 +1400,38 @@ wrapWidth: null,
     setSelectedNodeId((prev) => (prev && s.nodes?.some((n) => n.id === prev) ? prev : null));
   };
 
+  const getActiveSnapshot = () => snapshots.find((snapshot) => snapshot.id === activeSnapshotId);
+  const activeAccess = getActiveSnapshot()?.access ?? 'owner';
+  const activeOwnerEmail = getActiveSnapshot()?.ownerEmail ?? cloudEmail ?? '';
+
+  const openSharing = async () => {
+    if (!activeSnapshotId || activeAccess !== 'owner') return;
+    setShareOpen(true);
+    setCloudStatus('Loading sharing…');
+    try { setShares(await listNebulaShares(activeSnapshotId)); setCloudStatus(''); }
+    catch (error) { setCloudStatus(error instanceof Error ? error.message : String(error)); }
+  };
+
+  const addShare = async () => {
+    const userId = cloudUserRef.current;
+    if (!activeSnapshotId || !userId || !shareEmail.trim()) return;
+    try {
+      await shareNebula(activeSnapshotId, userId, shareEmail, sharePermission);
+      setShareEmail('');
+      setShares(await listNebulaShares(activeSnapshotId));
+      setCloudStatus('Sharing updated');
+    } catch (error) { setCloudStatus(error instanceof Error ? error.message : String(error)); }
+  };
+
+  const removeShare = async (shareId: string) => {
+    if (!activeSnapshotId) return;
+    try { await unshareNebula(shareId); setShares(await listNebulaShares(activeSnapshotId)); }
+    catch (error) { setCloudStatus(error instanceof Error ? error.message : String(error)); }
+  };
+
   const saveCurrentSnapshot = (reason: "manual" | "autosave" = "manual") => {
     if (!activeSnapshotId) return;
+    if (getActiveSnapshot()?.access === 'view') return;
 
     try {
       const payload = buildStatePayload();
@@ -1439,6 +1476,8 @@ wrapWidth: null,
       createdAt: now,
       updatedAt: now,
       state: overrideState ?? buildStatePayload(),
+      ownerEmail: cloudEmail ?? undefined,
+      access: "owner",
     };
 
     setSnapshots((prev) => {
@@ -1483,6 +1522,7 @@ setLastSavedAt(snap.state.savedAt);
   };
 
   const renameSnapshot = (id: string, nextName: string) => {
+    if (snapshots.find((snapshot) => snapshot.id === id)?.access === 'view') return;
     setSnapshots((prev) => {
       const next = prev.map((sn) => (sn.id === id ? { ...sn, name: nextName } : sn));
       try {
@@ -1498,6 +1538,7 @@ setLastSavedAt(snap.state.savedAt);
   };
 
   const deleteSnapshot = (id: string) => {
+    if ((snapshots.find((snapshot) => snapshot.id === id)?.access ?? 'owner') !== 'owner') return;
     setSnapshots((prev) => {
       const next = prev.filter((sn) => sn.id !== id);
       try {
@@ -3144,7 +3185,7 @@ const deleteAxis = (axisId: string) => {
       >
         {snapshots.map((s) => (
           <option key={s.id} value={s.id}>
-            {s.name}
+            {s.name}{s.access && s.access !== 'owner' ? ` · shared (${s.access})` : ''}
           </option>
         ))}
       </select>
@@ -3153,6 +3194,7 @@ const deleteAxis = (axisId: string) => {
         <input
           value={snapshots.find((s) => s.id === activeSnapshotId)?.name ?? ""}
           onChange={(e) => renameSnapshot(activeSnapshotId, e.target.value)}
+          disabled={activeAccess === 'view'}
           style={{ width: 180, flex: "0 1 auto" }}
           title="Rename current strategy"
         />
@@ -3170,6 +3212,36 @@ const deleteAxis = (axisId: string) => {
 >
   {copiedAt ? "✓" : "🔗"}
 </span>
+<div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+  <span className="muted" style={{ fontSize: 12 }}>
+    {activeAccess === 'owner' ? 'Owned by you' : `${activeAccess === 'edit' ? 'Can edit' : 'View only'} · Owned by ${activeOwnerEmail}`}
+  </span>
+  {activeSnapshotId && activeAccess === 'owner' && (
+    <button type="button" className="smallBtn" onClick={() => void openSharing()}>Share</button>
+  )}
+</div>
+{shareOpen && activeAccess === 'owner' && (
+  <div style={{ width: "100%", padding: 12, border: "1px solid rgba(255,255,255,0.16)", borderRadius: 10 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <strong>Share this Nebula</strong>
+      <button type="button" className="smallBtn" onClick={() => setShareOpen(false)}>Close</button>
+    </div>
+    <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+      <input type="email" value={shareEmail} onChange={(e) => setShareEmail(e.target.value)} placeholder="Email address" style={{ flex: "1 1 180px" }} />
+      <select value={sharePermission} onChange={(e) => setSharePermission(e.target.value as 'view' | 'edit')}>
+        <option value="view">Can view</option><option value="edit">Can edit</option>
+      </select>
+      <button type="button" className="smallBtn" disabled={!shareEmail.trim()} onClick={() => void addShare()}>Share</button>
+    </div>
+    {shares.map((share) => (
+      <div key={share.id} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+        <span style={{ flex: 1, fontSize: 12 }}>{share.email}</span><span className="muted" style={{ fontSize: 12 }}>{share.permission === 'edit' ? 'Can edit' : 'Can view'}</span>
+        <button type="button" className="smallBtn" onClick={() => void removeShare(share.id)}>Remove</button>
+      </div>
+    ))}
+    <div role="status" className="muted" style={{ fontSize: 12, marginTop: 8 }}>{cloudStatus}</div>
+  </div>
+)}
 <div
   style={{
     display: "flex",
@@ -3295,7 +3367,7 @@ const deleteAxis = (axisId: string) => {
           className="smallBtn"
           onClick={() => saveCurrentSnapshot("manual")}
           title="Save current strategy"
-          disabled={!activeSnapshotId}
+          disabled={!activeSnapshotId || activeAccess === 'view'}
         >
           Save
         </button>
@@ -3442,7 +3514,7 @@ const deleteAxis = (axisId: string) => {
             deleteSnapshot(activeSnapshotId);
           }}
           title="Delete current strategy"
-          disabled={!activeSnapshotId}
+          disabled={!activeSnapshotId || activeAccess !== 'owner'}
         >
           Delete
         </button>
