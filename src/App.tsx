@@ -726,6 +726,7 @@ const BLANK_NODES: NodeItem[] = [];
   const hasHydratedRef = useRef(false);
 
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const { ref: measuredStageRef, size: measuredStageSize } = useSize<HTMLDivElement>();
 
   // For PNG export (serialize the SVG)
   const svgExportRef = useRef<SVGSVGElement | null>(null);
@@ -1825,6 +1826,10 @@ const BUILTIN_EXAMPLE_SNAPSHOT: NebulaSnapshotV1 = {
 
 // --- One-time init: load snapshots, import legacy if present, pick active via URL/localStorage ---
 useLayoutEffect(() => {
+  // Cloud is the source of truth. Authentication hydrates the workspace.
+  // Do not seed browser-only snapshots or put their IDs into the URL.
+  if (!cloudUserRef.current) return;
+
   try {
     let existing = readSnapshots();
 
@@ -3784,12 +3789,12 @@ const deleteAxis = (axisId: string) => {
 
       {(() => {
 
-              const { ref: measuredRef, size } = useSize<HTMLDivElement>();
+              const size = measuredStageSize;
 
               // combine refs: we need the div measured AND stageRef for tooltip positioning
               const setStageEl = (el: HTMLDivElement | null) => {
                 stageRef.current = el;
-                (measuredRef as any).current = el;
+                (measuredStageRef as any).current = el;
               };
 
               const w = size.width > 0 ? size.width : 1000;
