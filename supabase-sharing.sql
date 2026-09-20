@@ -9,6 +9,21 @@ create table if not exists public.nebula_shares (
 );
 create index if not exists nebula_shares_email_idx on public.nebula_shares (shared_with_email);
 alter table public.nebula_shares enable row level security;
+create or replace function public.is_nebula_owner(target_nebula_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.nebulas n
+    where n.id = target_nebula_id
+      and n.owner_id = (select auth.uid())
+  );
+$$;
+revoke all on function public.is_nebula_owner(text) from public;
+grant execute on function public.is_nebula_owner(text) to authenticated;
 drop policy if exists "Owners read their nebulas" on public.nebulas;
 drop policy if exists "Owners create their nebulas" on public.nebulas;
 drop policy if exists "Owners edit their nebulas" on public.nebulas;
@@ -26,7 +41,7 @@ drop policy if exists "Owners create shares" on public.nebula_shares;
 drop policy if exists "Owners update shares" on public.nebula_shares;
 drop policy if exists "Owners delete shares" on public.nebula_shares;
 create policy "Share participants read shares" on public.nebula_shares for select to authenticated using (owner_id = (select auth.uid()) or shared_with_email = lower((select auth.jwt()->>'email')));
-create policy "Owners create shares" on public.nebula_shares for insert to authenticated with check (owner_id = (select auth.uid()) and exists (select 1 from public.nebulas n where n.id = nebula_id and n.owner_id = (select auth.uid())));
+create policy "Owners create shares" on public.nebula_shares for insert to authenticated with check (owner_id = (select auth.uid()) and public.is_nebula_owner(nebula_id));
 create policy "Owners update shares" on public.nebula_shares for update to authenticated using (owner_id = (select auth.uid())) with check (owner_id = (select auth.uid()));
 create policy "Owners delete shares" on public.nebula_shares for delete to authenticated using (owner_id = (select auth.uid()));
 revoke update on public.nebulas from authenticated;

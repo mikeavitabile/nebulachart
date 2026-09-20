@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { cloud, listCloudSnapshots, putCloudSnapshot, removeCloudSnapshot, listNebulaShares, shareNebula, unshareNebula, type NebulaShare, type CloudAccess } from "./cloud";
+import { cloud, cloudErrorMessage, listCloudSnapshots, putCloudSnapshot, removeCloudSnapshot, listNebulaShares, shareNebula, unshareNebula, type NebulaShare, type CloudAccess } from "./cloud";
 
 import babyImg from "./assets/star-2.png";
 import "./App.css";
@@ -1409,7 +1409,7 @@ wrapWidth: null,
     setShareOpen(true);
     setCloudStatus('Loading sharing…');
     try { setShares(await listNebulaShares(activeSnapshotId)); setCloudStatus(''); }
-    catch (error) { setCloudStatus(error instanceof Error ? error.message : String(error)); }
+    catch (error) { setCloudStatus(cloudErrorMessage(error)); }
   };
 
   const addShare = async () => {
@@ -1420,13 +1420,13 @@ wrapWidth: null,
       setShareEmail('');
       setShares(await listNebulaShares(activeSnapshotId));
       setCloudStatus('Sharing updated');
-    } catch (error) { setCloudStatus(error instanceof Error ? error.message : String(error)); }
+    } catch (error) { setCloudStatus(cloudErrorMessage(error)); }
   };
 
   const removeShare = async (shareId: string) => {
     if (!activeSnapshotId) return;
     try { await unshareNebula(shareId); setShares(await listNebulaShares(activeSnapshotId)); }
-    catch (error) { setCloudStatus(error instanceof Error ? error.message : String(error)); }
+    catch (error) { setCloudStatus(cloudErrorMessage(error)); }
   };
 
   const saveCurrentSnapshot = (reason: "manual" | "autosave" = "manual") => {
@@ -3363,14 +3363,19 @@ const deleteAxis = (axisId: string) => {
           flexWrap: "wrap",
         }}
       >
-        <button
-          className="smallBtn"
-          onClick={() => saveCurrentSnapshot("manual")}
-          title="Save current strategy"
-          disabled={!activeSnapshotId || activeAccess === 'view'}
+        <span
+          style={{ display: "inline-flex" }}
+          title={activeAccess === 'view' ? "View-only access: use Save As to create your own editable copy." : "Save current strategy"}
         >
-          Save
-        </button>
+          <button
+            className="smallBtn"
+            onClick={() => saveCurrentSnapshot("manual")}
+            disabled={!activeSnapshotId || activeAccess === 'view'}
+            aria-label={activeAccess === 'view' ? "Save unavailable for view-only access" : "Save current strategy"}
+          >
+            Save
+          </button>
+        </span>
 
         <button
           className="smallBtn"

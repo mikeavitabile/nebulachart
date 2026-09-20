@@ -5,6 +5,17 @@ export const cloud = createClient(url, key);
 export type CloudAccess = 'owner' | 'edit' | 'view';
 export type CloudSnapshot<T> = { id: string; name: string; createdAt: number; updatedAt: number; state: T; ownerId?: string; ownerEmail?: string; access?: CloudAccess };
 export type NebulaShare = { id: string; nebulaId: string; email: string; permission: 'view' | 'edit' };
+export function cloudErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    const value = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    return [value.message, value.details, value.hint, value.code && `Code: ${value.code}`]
+      .filter((part): part is string => typeof part === 'string' && part.length > 0)
+      .join(' — ') || JSON.stringify(error);
+  }
+  return String(error);
+}
 type Row<T> = { id: string; name: string; created_at: string; updated_at: string; state: T; owner_id: string; owner_email: string | null };
 export async function listCloudSnapshots<T>(userId: string, email: string): Promise<CloudSnapshot<T>[]> {
   const [{ data, error }, { data: shareData, error: shareError }] = await Promise.all([
