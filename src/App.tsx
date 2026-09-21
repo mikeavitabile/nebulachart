@@ -873,6 +873,7 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const [cloudStatus, setCloudStatus] = useState("");
   const [cloudLoading, setCloudLoading] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [shareStatus, setShareStatus] = useState("");
   const [shareEmail, setShareEmail] = useState("");
   const [sharePermission, setSharePermission] = useState<'view' | 'edit'>('view');
   const [shares, setShares] = useState<NebulaShare[]>([]);
@@ -1407,32 +1408,38 @@ wrapWidth: null,
   const openSharing = async () => {
     if (!activeSnapshotId || activeAccess !== 'owner') return;
     setShareOpen(true);
-    setCloudStatus('Loading sharing…');
-    try { setShares(await listNebulaShares(activeSnapshotId)); setCloudStatus(''); }
-    catch (error) { setCloudStatus(cloudErrorMessage(error)); }
+    setShareStatus('Loading sharing…');
+    try { setShares(await listNebulaShares(activeSnapshotId)); setShareStatus(''); }
+    catch (error) { setShareStatus(cloudErrorMessage(error)); }
   };
 
   const addShare = async () => {
     const userId = cloudUserRef.current;
     if (!activeSnapshotId || !userId || !shareEmail.trim()) return;
     const recipientEmail = shareEmail.trim().toLowerCase();
+    setShareStatus('Sharing…');
     try {
       await shareNebula(activeSnapshotId, userId, recipientEmail, sharePermission);
       setShareEmail('');
       setShares(await listNebulaShares(activeSnapshotId));
       try {
         await sendShareInvitation(activeSnapshotId, recipientEmail);
-        setCloudStatus('Sharing updated · invitation sent');
+        setShareStatus('Sharing updated · invitation sent');
       } catch (emailError) {
-        setCloudStatus(`Access granted, but email failed: ${cloudErrorMessage(emailError)}`);
+        setShareStatus(`Access granted, but email failed: ${cloudErrorMessage(emailError)}`);
       }
-    } catch (error) { setCloudStatus(cloudErrorMessage(error)); }
+    } catch (error) { setShareStatus(cloudErrorMessage(error)); }
   };
 
   const removeShare = async (shareId: string) => {
     if (!activeSnapshotId) return;
-    try { await unshareNebula(shareId); setShares(await listNebulaShares(activeSnapshotId)); }
-    catch (error) { setCloudStatus(cloudErrorMessage(error)); }
+    setShareStatus('Removing access…');
+    try {
+      await unshareNebula(shareId);
+      setShares(await listNebulaShares(activeSnapshotId));
+      setShareStatus('Access removed');
+    }
+    catch (error) { setShareStatus(cloudErrorMessage(error)); }
   };
 
   const saveCurrentSnapshot = (reason: "manual" | "autosave" = "manual") => {
@@ -3185,7 +3192,11 @@ const deleteAxis = (axisId: string) => {
     >
       <select
         value={activeSnapshotId ?? ""}
-        onChange={(e) => loadSnapshotById(e.target.value)}
+        onChange={(e) => {
+          setShareOpen(false);
+          setShareStatus('');
+          loadSnapshotById(e.target.value);
+        }}
         style={{ minWidth: 180, flex: "1 1 240px" }}
         title="Select a saved strategy"
       >
@@ -3218,36 +3229,6 @@ const deleteAxis = (axisId: string) => {
 >
   {copiedAt ? "✓" : "🔗"}
 </span>
-<div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-  <span className="muted" style={{ fontSize: 12 }}>
-    {activeAccess === 'owner' ? 'Owned by you' : `${activeAccess === 'edit' ? 'Can edit' : 'View only'} · Owned by ${activeOwnerEmail}`}
-  </span>
-  {activeSnapshotId && activeAccess === 'owner' && (
-    <button type="button" className="smallBtn" onClick={() => void openSharing()}>Share</button>
-  )}
-</div>
-{shareOpen && activeAccess === 'owner' && (
-  <div style={{ width: "100%", padding: 12, border: "1px solid rgba(255,255,255,0.16)", borderRadius: 10 }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <strong>Share this Nebula</strong>
-      <button type="button" className="smallBtn" onClick={() => setShareOpen(false)}>Close</button>
-    </div>
-    <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-      <input type="email" value={shareEmail} onChange={(e) => setShareEmail(e.target.value)} placeholder="Email address" style={{ flex: "1 1 180px" }} />
-      <select value={sharePermission} onChange={(e) => setSharePermission(e.target.value as 'view' | 'edit')}>
-        <option value="view">Can view</option><option value="edit">Can edit</option>
-      </select>
-      <button type="button" className="smallBtn" disabled={!shareEmail.trim()} onClick={() => void addShare()}>Share</button>
-    </div>
-    {shares.map((share) => (
-      <div key={share.id} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
-        <span style={{ flex: 1, fontSize: 12 }}>{share.email}</span><span className="muted" style={{ fontSize: 12 }}>{share.permission === 'edit' ? 'Can edit' : 'Can view'}</span>
-        <button type="button" className="smallBtn" onClick={() => void removeShare(share.id)}>Remove</button>
-      </div>
-    ))}
-    <div role="status" className="muted" style={{ fontSize: 12, marginTop: 8 }}>{cloudStatus}</div>
-  </div>
-)}
 <div
   style={{
     display: "flex",
@@ -3562,6 +3543,58 @@ const deleteAxis = (axisId: string) => {
             })}`
           : "Not saved yet"}
       </span>
+    </div>
+
+    {/* Ownership + sharing */}
+    <div
+      style={{
+        width: "100%",
+        marginTop: 14,
+        paddingTop: 12,
+        borderTop: "1px solid rgba(128,128,128,0.22)",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span className="muted" style={{ fontSize: 12 }}>
+          {activeAccess === 'owner' ? 'Owned by you' : `${activeAccess === 'edit' ? 'Can edit' : 'View only'} · Owned by ${activeOwnerEmail}`}
+        </span>
+        {activeSnapshotId && activeAccess === 'owner' && (
+          <button
+            type="button"
+            className="smallBtn"
+            onClick={() => {
+              if (shareOpen) {
+                setShareOpen(false);
+                setShareStatus('');
+              } else {
+                void openSharing();
+              }
+            }}
+          >
+            {shareOpen ? 'Close sharing' : 'Share'}
+          </button>
+        )}
+      </div>
+
+      {shareOpen && activeAccess === 'owner' && (
+        <div style={{ width: "100%", marginTop: 10, padding: 12, border: "1px solid rgba(128,128,128,0.28)", borderRadius: 10 }}>
+          <strong>Share this Nebula</strong>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <input type="email" value={shareEmail} onChange={(e) => setShareEmail(e.target.value)} placeholder="Email address" style={{ flex: "1 1 180px" }} />
+            <select value={sharePermission} onChange={(e) => setSharePermission(e.target.value as 'view' | 'edit')}>
+              <option value="view">Can view</option><option value="edit">Can edit</option>
+            </select>
+            <button type="button" className="smallBtn" disabled={!shareEmail.trim()} onClick={() => void addShare()}>Share</button>
+          </div>
+          {shares.map((share) => (
+            <div key={share.id} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+              <span style={{ flex: 1, fontSize: 12 }}>{share.email}</span><span className="muted" style={{ fontSize: 12 }}>{share.permission === 'edit' ? 'Can edit' : 'Can view'}</span>
+              <button type="button" className="smallBtn" onClick={() => void removeShare(share.id)}>Remove</button>
+            </div>
+          ))}
+          <div role="status" className="muted" style={{ fontSize: 12, marginTop: shareStatus ? 8 : 0 }}>{shareStatus}</div>
+        </div>
+      )}
     </div>
   </div>
 </aside>
