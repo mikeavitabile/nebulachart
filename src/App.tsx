@@ -242,6 +242,37 @@ type NebulaSnapshotV1 = {
   revision?: number;
 };
 
+type PresentPerson = {
+  userId: string;
+  email: string;
+  alias: string;
+  emoji: string;
+  color: string;
+};
+
+const PRESENCE_ANIMALS = [
+  ['Otter', '🦦'], ['Fox', '🦊'], ['Owl', '🦉'], ['Panda', '🐼'],
+  ['Koala', '🐨'], ['Tiger', '🐯'], ['Penguin', '🐧'], ['Frog', '🐸'],
+  ['Rabbit', '🐰'], ['Bear', '🐻'], ['Lion', '🦁'], ['Whale', '🐳'],
+] as const;
+const PRESENCE_COLORS = [
+  ['Violet', '#7c5cff'], ['Blue', '#3487f7'], ['Teal', '#13a89e'],
+  ['Green', '#3aa655'], ['Amber', '#d68b13'], ['Coral', '#e45f5f'],
+  ['Pink', '#cf4f9b'], ['Indigo', '#5267d8'],
+] as const;
+
+function presenceIdentity(userId: string, email: string): PresentPerson {
+  let hash = 2166136261;
+  for (let i = 0; i < userId.length; i += 1) {
+    hash ^= userId.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const unsigned = hash >>> 0;
+  const animal = PRESENCE_ANIMALS[unsigned % PRESENCE_ANIMALS.length];
+  const color = PRESENCE_COLORS[Math.floor(unsigned / PRESENCE_ANIMALS.length) % PRESENCE_COLORS.length];
+  return { userId, email, alias: `${color[0]} ${animal[0]}`, emoji: animal[1], color: color[1] };
+}
+
 
 function safeParseJSON<T>(raw: string | null): T | null {
   if (!raw) return null;
@@ -949,6 +980,7 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const [shareEmail, setShareEmail] = useState("");
   const [sharePermission, setSharePermission] = useState<'view' | 'edit'>('view');
   const [shares, setShares] = useState<NebulaShare[]>([]);
+  const [presentPeople, setPresentPeople] = useState<PresentPerson[]>([]);
   const cloudUserRef = useRef<string | null>(null);
   const cloudQueueRef = useRef<Promise<void>>(Promise.resolve());
   const cloudRevisionRef = useRef<Map<string, number>>(new Map());
@@ -2221,6 +2253,58 @@ useLayoutEffect(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSnapshotId, activeAccess]);
 
+  // Show the signed-in collaborators who currently have this Nebula open.
+  useEffect(() => {
+    const userId = cloudUserRef.current;
+    if (!userId || !cloudEmail || !activeSnapshotId) {
+      setPresentPeople([]);
+      return;
+    }
+
+    let cancelled = false;
+    let presenceChannel: ReturnType<typeof cloud.channel> | null = null;
+    const ownPresence = presenceIdentity(userId, cloudEmail);
+    setPresentPeople([]);
+
+    const connectPresence = async () => {
+      await cloud.realtime.setAuth();
+      if (cancelled) return;
+
+      presenceChannel = cloud
+        .channel(`nebula:${activeSnapshotId}`, {
+          config: { private: true, presence: { key: userId, enabled: true } },
+        })
+        .on('presence', { event: 'sync' }, () => {
+          if (!presenceChannel || cancelled) return;
+          const state = presenceChannel.presenceState<PresentPerson>();
+          const byUser = new Map<string, PresentPerson>();
+          Object.values(state).flat().forEach((person) => {
+            if (person.userId && person.email) byUser.set(person.userId, person);
+          });
+          setPresentPeople([...byUser.values()].sort((a, b) => {
+            if (a.userId === userId) return -1;
+            if (b.userId === userId) return 1;
+            return a.alias.localeCompare(b.alias);
+          }));
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED' && presenceChannel && !cancelled) {
+            await presenceChannel.track(ownPresence);
+          }
+        });
+    };
+
+    void connectPresence();
+    return () => {
+      cancelled = true;
+      setPresentPeople([]);
+      if (presenceChannel) {
+        void presenceChannel.untrack();
+        void cloud.removeChannel(presenceChannel);
+      }
+    };
+  }, [activeSnapshotId, cloudEmail]);
+
 
 
   // ----- Chart constants (legacy / harmless even though SVG now sizes dynamically) -----
@@ -2532,6 +2616,59 @@ const deleteAxis = (axisId: string) => {
     </button>
 
     <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+      {presentPeople.length > 0 && (
+        <div
+          aria-label={`${presentPeople.length} ${presentPeople.length === 1 ? 'person' : 'people'} viewing`}
+          title={`${presentPeople.length} ${presentPeople.length === 1 ? 'person' : 'people'} viewing`}
+          style={{ display: "flex", alignItems: "center", paddingLeft: 6 }}
+        >
+          {presentPeople.slice(0, 4).map((person, index) => (
+            <span
+              key={person.userId}
+              title={`${person.alias} · ${person.email}${person.userId === cloudUserRef.current ? ' (you)' : ''}`}
+              aria-label={`${person.alias}, ${person.email}${person.userId === cloudUserRef.current ? ', you' : ''}`}
+              style={{
+                width: 30,
+                height: 30,
+                marginLeft: index === 0 ? 0 : -7,
+                borderRadius: "50%",
+                border: "2px solid #0a0a12",
+                background: person.color,
+                display: "grid",
+                placeItems: "center",
+                fontSize: 16,
+                lineHeight: 1,
+                cursor: "default",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.28)",
+                position: "relative",
+                zIndex: presentPeople.length - index,
+              }}
+            >
+              {person.emoji}
+            </span>
+          ))}
+          {presentPeople.length > 4 && (
+            <span
+              title={`${presentPeople.length - 4} more people viewing`}
+              style={{
+                width: 30,
+                height: 30,
+                marginLeft: -7,
+                borderRadius: "50%",
+                border: "2px solid #0a0a12",
+                background: "#343442",
+                color: "white",
+                display: "grid",
+                placeItems: "center",
+                fontSize: 10,
+                fontWeight: 700,
+              }}
+            >
+              +{presentPeople.length - 4}
+            </span>
+          )}
+        </div>
+      )}
       <span className="muted" style={{ fontSize: 12 }} title={cloudEmail}>
         {cloudEmail}
       </span>
