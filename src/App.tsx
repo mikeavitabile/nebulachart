@@ -2160,7 +2160,8 @@ useLayoutEffect(() => {
 
     // debounce so we don't save on every keystroke
     autosaveTimerRef.current = window.setTimeout(() => {
-        saveCurrentSnapshot("autosave");
+      autosaveTimerRef.current = null;
+      saveCurrentSnapshot("autosave");
 
     }, 500);
 
