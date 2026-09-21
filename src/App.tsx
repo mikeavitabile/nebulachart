@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { cloud, cloudErrorMessage, listCloudSnapshots, putCloudSnapshot, removeCloudSnapshot, listNebulaShares, shareNebula, sendShareInvitation, unshareNebula, type NebulaShare, type CloudAccess } from "./cloud";
+import { cloud, cloudErrorMessage, CloudAccessError, CloudConflictError, listCloudSnapshots, putCloudSnapshot, removeCloudSnapshot, listNebulaShares, shareNebula, sendShareInvitation, unshareNebula, type NebulaShare, type CloudAccess } from "./cloud";
 
 import babyImg from "./assets/star-2.png";
 import "./App.css";
@@ -187,6 +187,7 @@ type NebulaSnapshotV1 = {
   ownerId?: string;
   ownerEmail?: string;
   access?: CloudAccess;
+  revision?: number;
 };
 
 
@@ -871,6 +872,7 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [cloudStatus, setCloudStatus] = useState("");
+  const [syncStatus, setSyncStatus] = useState("");
   const [cloudLoading, setCloudLoading] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
@@ -879,6 +881,10 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const [shares, setShares] = useState<NebulaShare[]>([]);
   const cloudUserRef = useRef<string | null>(null);
   const cloudQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const cloudRevisionRef = useRef<Map<string, number>>(new Map());
+  const cloudConflictRef = useRef<Set<string>>(new Set());
+  const localDirtyRef = useRef(false);
+  const applyingRemoteRef = useRef(false);
   const authGenerationRef = useRef(0);
    const [copiedAt, setCopiedAt] = useState<number | null>(null);
 
@@ -1308,19 +1314,51 @@ wrapWidth: null,
   };
 
   const queueCloudWrite = (task: () => Promise<void>) => {
-    setCloudStatus("Saving to cloud…");
+    setSyncStatus("Saving…");
     cloudQueueRef.current = cloudQueueRef.current.catch(() => {}).then(task).then(
-      () => setCloudStatus("Saved to cloud"),
+      () => setSyncStatus("Live · Saved"),
       (error) => {
         console.error("Cloud save failed:", error);
-        setCloudStatus(`Cloud save failed: ${error.message || String(error)}. Retry by saving again.`);
+        if (error instanceof CloudConflictError) {
+          setSyncStatus("Editing paused: a collaborator saved newer changes. Refresh to load their version before continuing.");
+        } else if (error instanceof CloudAccessError) {
+          setSyncStatus("Access removed · Your changes were not saved.");
+        } else {
+          setSyncStatus(`Save failed: ${cloudErrorMessage(error)}. Retry by saving again.`);
+        }
       }
     );
   };
 
   const persistSnapshot = (snapshot: NebulaSnapshotV1) => {
     const userId = cloudUserRef.current;
-    if (userId && cloudEmail && snapshot.access !== 'view') queueCloudWrite(() => putCloudSnapshot(userId, cloudEmail, snapshot));
+    if (!userId || !cloudEmail || snapshot.access === 'view') return;
+    if (cloudConflictRef.current.has(snapshot.id)) {
+      setSyncStatus("Editing paused: refresh to load the collaborator's newer version.");
+      return;
+    }
+
+    const expectedRevision = cloudRevisionRef.current.get(snapshot.id) ?? snapshot.revision ?? 0;
+    cloudRevisionRef.current.set(snapshot.id, expectedRevision + 1);
+    queueCloudWrite(async () => {
+      try {
+        const revision = await putCloudSnapshot(userId, cloudEmail, { ...snapshot, revision: expectedRevision });
+        cloudRevisionRef.current.set(snapshot.id, revision);
+        localDirtyRef.current = false;
+        setSnapshots((prev) => prev.map((item) => item.id === snapshot.id
+          ? { ...item, ownerId: item.ownerId ?? userId, ownerEmail: item.ownerEmail ?? cloudEmail, revision }
+          : item));
+      } catch (error) {
+        if (cloudRevisionRef.current.get(snapshot.id) === expectedRevision + 1) {
+          cloudRevisionRef.current.set(snapshot.id, expectedRevision);
+        }
+        if (error instanceof CloudConflictError) {
+          cloudConflictRef.current.add(snapshot.id);
+          cloudRevisionRef.current.set(snapshot.id, error.remoteRevision);
+        }
+        throw error;
+      }
+    });
   };
 
   const activateCloudAccount = async (userId: string | null, email: string | null) => {
@@ -1339,14 +1377,21 @@ wrapWidth: null,
       cloudUserRef.current = userId;
       setCloudEmail(email);
       if (userId) setAutoSaveEnabled(true);
+      cloudRevisionRef.current = new Map(next.map((snapshot) => [snapshot.id, snapshot.revision ?? 1]));
+      cloudConflictRef.current.clear();
       setSnapshots(next);
       const preferredId = getStrategyIdFromUrl() || localStorage.getItem(ACTIVE_SNAPSHOT_KEY);
       const initial = next.find((s) => s.id === preferredId) || next[0];
       setActiveSnapshotId(initial?.id ?? null);
       setStrategyIdInUrl(initial?.id ?? null);
-      if (initial) loadSnapshotIntoState(initial);
+      if (initial) {
+        applyingRemoteRef.current = true;
+        loadSnapshotIntoState(initial);
+        window.requestAnimationFrame(() => { applyingRemoteRef.current = false; });
+      }
       else resetWorkingState();
       setCloudStatus(userId ? "Cloud ready" : "");
+      setSyncStatus(userId && initial ? "Connecting…" : "");
     } catch (error) {
       console.error("Cloud load failed:", error);
       setCloudStatus(`Cloud load failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -1525,6 +1570,8 @@ setLastSavedAt(snap.state.savedAt);
     const found = snapshots.find((s) => s.id === id);
     if (!found) return;
 
+    localDirtyRef.current = false;
+    applyingRemoteRef.current = true;
     setActiveSnapshotId(id);
     try {
       localStorage.setItem(ACTIVE_SNAPSHOT_KEY, id);
@@ -1532,6 +1579,7 @@ setLastSavedAt(snap.state.savedAt);
     setStrategyIdInUrl(id);
 
     loadSnapshotIntoState(found);
+    window.requestAnimationFrame(() => { applyingRemoteRef.current = false; });
   };
 
   const renameSnapshot = (id: string, nextName: string) => {
@@ -1975,6 +2023,78 @@ useLayoutEffect(() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
+  // Keep the open Nebula synchronized with collaborators through Supabase Realtime.
+  useEffect(() => {
+    if (!cloudUserRef.current || !activeSnapshotId) {
+      setSyncStatus("");
+      return;
+    }
+
+    const nebulaId = activeSnapshotId;
+    setSyncStatus("Connecting…");
+    const channel = cloud
+      .channel(`nebula-live:${nebulaId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'nebulas', filter: `id=eq.${nebulaId}` },
+        (payload) => {
+          const row = payload.new as {
+            id: string;
+            name: string;
+            state: NebulaSavedStateV1;
+            created_at: string;
+            updated_at: string;
+            owner_id: string;
+            owner_email: string | null;
+            revision: number;
+          };
+          const remoteRevision = Number(row.revision ?? 0);
+          const knownRevision = cloudRevisionRef.current.get(nebulaId) ?? 0;
+          if (!remoteRevision || remoteRevision <= knownRevision) return;
+
+          cloudRevisionRef.current.set(nebulaId, remoteRevision);
+          if (localDirtyRef.current || autosaveTimerRef.current) {
+            cloudConflictRef.current.add(nebulaId);
+            setSyncStatus("Editing paused: a collaborator saved newer changes. Refresh to load their version before continuing.");
+            return;
+          }
+
+          const remoteSnapshot: NebulaSnapshotV1 = {
+            id: row.id,
+            name: row.name,
+            createdAt: Date.parse(row.created_at),
+            updatedAt: Date.parse(row.updated_at),
+            state: row.state,
+            ownerId: row.owner_id,
+            ownerEmail: row.owner_email ?? undefined,
+            access: activeAccess,
+            revision: remoteRevision,
+          };
+
+          applyingRemoteRef.current = true;
+          if (autosaveTimerRef.current) {
+            window.clearTimeout(autosaveTimerRef.current);
+            autosaveTimerRef.current = null;
+          }
+          localDirtyRef.current = false;
+          setSnapshots((prev) => prev.map((snapshot) => snapshot.id === nebulaId
+            ? { ...remoteSnapshot, access: snapshot.access }
+            : snapshot));
+          loadSnapshotIntoState(remoteSnapshot);
+          setSyncStatus("Live · Updated by collaborator");
+          window.requestAnimationFrame(() => { applyingRemoteRef.current = false; });
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') setSyncStatus("Live");
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setSyncStatus("Reconnecting…");
+      });
+
+    return () => { void cloud.removeChannel(channel); };
+    // activeAccess is captured for the selected Nebula and changes when selection/access changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSnapshotId, activeAccess]);
+
 
 
   // ----- Chart constants (legacy / harmless even though SVG now sizes dynamically) -----
@@ -2025,6 +2145,12 @@ useLayoutEffect(() => {
   useLayoutEffect(() => {
     if (!autoSaveEnabled) return;
     if (!hasHydratedRef.current) return;
+    if (applyingRemoteRef.current) return;
+
+    localDirtyRef.current = true;
+    if (!activeSnapshotId || !cloudConflictRef.current.has(activeSnapshotId)) {
+      setSyncStatus("Unsaved changes");
+    }
 
     // clear any pending save
     if (autosaveTimerRef.current) {
@@ -3543,6 +3669,18 @@ const deleteAxis = (axisId: string) => {
             })}`
           : "Not saved yet"}
       </span>
+      {syncStatus && (
+        <span
+          role="status"
+          className="muted"
+          style={{
+            width: syncStatus.startsWith("Editing paused") || syncStatus.startsWith("Access removed") ? "100%" : undefined,
+            fontSize: 12,
+          }}
+        >
+          {syncStatus}
+        </span>
+      )}
     </div>
 
     {/* Ownership + sharing */}
