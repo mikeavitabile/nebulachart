@@ -7,10 +7,14 @@ export type CloudSnapshot<T> = { id: string; name: string; createdAt: number; up
 export type NebulaShare = { id: string; nebulaId: string; email: string; permission: 'view' | 'edit' };
 export class CloudConflictError extends Error {
   remoteRevision: number;
-  constructor(remoteRevision: number) {
+  remoteState?: unknown;
+  remoteName?: string;
+  constructor(remoteRevision: number, remoteState?: unknown, remoteName?: string) {
     super('Someone else saved a newer version of this Nebula.');
     this.name = 'CloudConflictError';
     this.remoteRevision = remoteRevision;
+    this.remoteState = remoteState;
+    this.remoteName = remoteName;
   }
 }
 export class CloudAccessError extends Error {
@@ -56,9 +60,9 @@ export async function putCloudSnapshot<T>(ownerId: string, ownerEmail: string, s
     if (error) throw error;
     if (typeof data === 'number') return data;
 
-    const { data: current, error: readError } = await cloud.from('nebulas').select('revision').eq('id', snapshot.id).maybeSingle();
+    const { data: current, error: readError } = await cloud.from('nebulas').select('revision,state,name').eq('id', snapshot.id).maybeSingle();
     if (readError) throw readError;
-    if (current) throw new CloudConflictError(current.revision);
+    if (current) throw new CloudConflictError(current.revision, current.state, current.name);
     throw new CloudAccessError();
   }
 

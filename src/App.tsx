@@ -178,6 +178,58 @@ type NebulaSavedStateV1 = {
   nodes: NodeItem[];
 };
 
+const valuesMatch = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+function mergeValue<T>(base: T, local: T, remote: T): T {
+  return valuesMatch(local, base) ? remote : local;
+}
+
+function mergeItem<T extends { id: string }>(base: T | undefined, local: T, remote: T): T {
+  if (!base) return { ...remote, ...local };
+  const merged = { ...remote } as T;
+  const keys = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
+  keys.forEach((key) => {
+    if (key === 'id') return;
+    const field = key as keyof T;
+    merged[field] = mergeValue(base[field], local[field], remote[field]);
+  });
+  return merged;
+}
+
+function mergeItems<T extends { id: string }>(base: T[], local: T[], remote: T[]): T[] {
+  const baseById = new Map(base.map((item) => [item.id, item]));
+  const localById = new Map(local.map((item) => [item.id, item]));
+  const remoteById = new Map(remote.map((item) => [item.id, item]));
+  const baseOrder = base.map((item) => item.id);
+  const localOrder = local.map((item) => item.id);
+  const remoteOrder = remote.map((item) => item.id);
+  const preferredOrder = valuesMatch(localOrder, baseOrder) ? remoteOrder : localOrder;
+  const ids = [...new Set([...preferredOrder, ...remoteOrder, ...localOrder])];
+
+  return ids.flatMap((id) => {
+    const baseItem = baseById.get(id);
+    const localItem = localById.get(id);
+    const remoteItem = remoteById.get(id);
+
+    // If an existing item was deleted on either side, deletion wins.
+    if (baseItem && (!localItem || !remoteItem)) return [];
+    if (localItem && remoteItem) return [mergeItem(baseItem, localItem, remoteItem)];
+    return localItem ? [localItem] : remoteItem ? [remoteItem] : [];
+  });
+}
+
+function mergeNebulaState(base: NebulaSavedStateV1, local: NebulaSavedStateV1, remote: NebulaSavedStateV1): NebulaSavedStateV1 {
+  return {
+    v: 1,
+    savedAt: Date.now(),
+    title: mergeValue(base.title, local.title, remote.title),
+    subtitle: mergeValue(base.subtitle, local.subtitle, remote.subtitle),
+    axes: mergeItems(base.axes, local.axes, remote.axes),
+    rings: mergeItems(base.rings, local.rings, remote.rings),
+    nodes: mergeItems(base.nodes, local.nodes, remote.nodes),
+  };
+}
+
 type NebulaSnapshotV1 = {
   id: string;
   name: string;
@@ -728,6 +780,24 @@ const BLANK_NODES: NodeItem[] = [];
 
   const autosaveTimerRef = useRef<number | null>(null);
   const hasHydratedRef = useRef(false);
+  const workingStateRef = useRef<NebulaSavedStateV1>({
+    v: 1,
+    savedAt: Date.now(),
+    title,
+    subtitle,
+    axes,
+    rings,
+    nodes,
+  });
+  workingStateRef.current = {
+    v: 1,
+    savedAt: lastSavedAt ?? Date.now(),
+    title,
+    subtitle,
+    axes,
+    rings,
+    nodes,
+  };
 
   const stageRef = useRef<HTMLDivElement | null>(null);
   const { ref: measuredStageRef, size: measuredStageSize } = useSize<HTMLDivElement>();
@@ -882,6 +952,7 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const cloudUserRef = useRef<string | null>(null);
   const cloudQueueRef = useRef<Promise<void>>(Promise.resolve());
   const cloudRevisionRef = useRef<Map<string, number>>(new Map());
+  const cloudBaseStateRef = useRef<Map<string, NebulaSavedStateV1>>(new Map());
   const cloudConflictRef = useRef<Set<string>>(new Set());
   const localDirtyRef = useRef(false);
   const applyingRemoteRef = useRef(false);
@@ -1344,6 +1415,7 @@ wrapWidth: null,
       try {
         const revision = await putCloudSnapshot(userId, cloudEmail, { ...snapshot, revision: expectedRevision });
         cloudRevisionRef.current.set(snapshot.id, revision);
+        cloudBaseStateRef.current.set(snapshot.id, snapshot.state);
         localDirtyRef.current = false;
         setSnapshots((prev) => prev.map((item) => item.id === snapshot.id
           ? { ...item, ownerId: item.ownerId ?? userId, ownerEmail: item.ownerEmail ?? cloudEmail, revision }
@@ -1351,6 +1423,36 @@ wrapWidth: null,
       } catch (error) {
         if (cloudRevisionRef.current.get(snapshot.id) === expectedRevision + 1) {
           cloudRevisionRef.current.set(snapshot.id, expectedRevision);
+        }
+        if (error instanceof CloudConflictError && error.remoteState) {
+          const remoteState = error.remoteState as NebulaSavedStateV1;
+          const baseState = cloudBaseStateRef.current.get(snapshot.id) ?? remoteState;
+          const localState = snapshot.id === activeSnapshotId ? workingStateRef.current : snapshot.state;
+          const mergedState = mergeNebulaState(baseState, localState, remoteState);
+          const mergedSnapshot = {
+            ...snapshot,
+            name: error.remoteName ?? snapshot.name,
+            state: mergedState,
+            updatedAt: Date.now(),
+            revision: error.remoteRevision,
+          };
+
+          cloudBaseStateRef.current.set(snapshot.id, remoteState);
+          cloudRevisionRef.current.set(snapshot.id, error.remoteRevision + 1);
+          const revision = await putCloudSnapshot(userId, cloudEmail, mergedSnapshot);
+          cloudRevisionRef.current.set(snapshot.id, revision);
+          cloudBaseStateRef.current.set(snapshot.id, mergedState);
+          cloudConflictRef.current.delete(snapshot.id);
+          localDirtyRef.current = false;
+          setSnapshots((prev) => prev.map((item) => item.id === snapshot.id
+            ? { ...item, name: mergedSnapshot.name, state: mergedState, updatedAt: mergedSnapshot.updatedAt, revision }
+            : item));
+          if (snapshot.id === activeSnapshotId) {
+            applyingRemoteRef.current = true;
+            loadSnapshotIntoState({ ...mergedSnapshot, revision });
+            window.requestAnimationFrame(() => { applyingRemoteRef.current = false; });
+          }
+          return;
         }
         if (error instanceof CloudConflictError) {
           cloudConflictRef.current.add(snapshot.id);
@@ -1378,6 +1480,7 @@ wrapWidth: null,
       setCloudEmail(email);
       if (userId) setAutoSaveEnabled(true);
       cloudRevisionRef.current = new Map(next.map((snapshot) => [snapshot.id, snapshot.revision ?? 1]));
+      cloudBaseStateRef.current = new Map(next.map((snapshot) => [snapshot.id, snapshot.state]));
       cloudConflictRef.current.clear();
       setSnapshots(next);
       const preferredId = getStrategyIdFromUrl() || localStorage.getItem(ACTIVE_SNAPSHOT_KEY);
@@ -2053,12 +2156,6 @@ useLayoutEffect(() => {
           if (!remoteRevision || remoteRevision <= knownRevision) return;
 
           cloudRevisionRef.current.set(nebulaId, remoteRevision);
-          if (localDirtyRef.current || autosaveTimerRef.current) {
-            cloudConflictRef.current.add(nebulaId);
-            setSyncStatus("Editing paused: a collaborator saved newer changes. Refresh to load their version before continuing.");
-            return;
-          }
-
           const remoteSnapshot: NebulaSnapshotV1 = {
             id: row.id,
             name: row.name,
@@ -2071,6 +2168,35 @@ useLayoutEffect(() => {
             revision: remoteRevision,
           };
 
+          if (localDirtyRef.current || autosaveTimerRef.current) {
+            const baseState = cloudBaseStateRef.current.get(nebulaId) ?? row.state;
+            const mergedState = mergeNebulaState(baseState, workingStateRef.current, row.state);
+            const mergedSnapshot = { ...remoteSnapshot, state: mergedState, updatedAt: Date.now() };
+
+            if (autosaveTimerRef.current) {
+              window.clearTimeout(autosaveTimerRef.current);
+              autosaveTimerRef.current = null;
+            }
+            cloudBaseStateRef.current.set(nebulaId, row.state);
+            cloudConflictRef.current.delete(nebulaId);
+            applyingRemoteRef.current = true;
+            setSnapshots((prev) => prev.map((snapshot) => snapshot.id === nebulaId
+              ? { ...mergedSnapshot, access: snapshot.access }
+              : snapshot));
+            loadSnapshotIntoState(mergedSnapshot);
+            localDirtyRef.current = !valuesMatch(mergedState, row.state);
+            window.requestAnimationFrame(() => { applyingRemoteRef.current = false; });
+
+            if (localDirtyRef.current) {
+              setSyncStatus("Merging collaborator changes…");
+              persistSnapshot(mergedSnapshot);
+            } else {
+              setSyncStatus("Live · Updated by collaborator");
+            }
+            return;
+          }
+
+          cloudBaseStateRef.current.set(nebulaId, row.state);
           applyingRemoteRef.current = true;
           if (autosaveTimerRef.current) {
             window.clearTimeout(autosaveTimerRef.current);
