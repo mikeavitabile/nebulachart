@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { cloud, cloudErrorMessage, listCloudSnapshots, putCloudSnapshot, removeCloudSnapshot, listNebulaShares, shareNebula, unshareNebula, type NebulaShare, type CloudAccess } from "./cloud";
+import { cloud, cloudErrorMessage, listCloudSnapshots, putCloudSnapshot, removeCloudSnapshot, listNebulaShares, shareNebula, sendShareInvitation, unshareNebula, type NebulaShare, type CloudAccess } from "./cloud";
 
 import babyImg from "./assets/star-2.png";
 import "./App.css";
@@ -1375,7 +1375,7 @@ wrapWidth: null,
     setCloudStatus("Sending sign-in link…");
     const { error } = await cloud.auth.signInWithOtp({
       email: emailInput.trim(),
-      options: { emailRedirectTo: window.location.origin + window.location.pathname },
+      options: { emailRedirectTo: window.location.origin + window.location.pathname + window.location.search },
     });
     setCloudStatus(error ? error.message : "Check your email for the sign-in link.");
   };
@@ -1415,11 +1415,17 @@ wrapWidth: null,
   const addShare = async () => {
     const userId = cloudUserRef.current;
     if (!activeSnapshotId || !userId || !shareEmail.trim()) return;
+    const recipientEmail = shareEmail.trim().toLowerCase();
     try {
-      await shareNebula(activeSnapshotId, userId, shareEmail, sharePermission);
+      await shareNebula(activeSnapshotId, userId, recipientEmail, sharePermission);
       setShareEmail('');
       setShares(await listNebulaShares(activeSnapshotId));
-      setCloudStatus('Sharing updated');
+      try {
+        await sendShareInvitation(activeSnapshotId, recipientEmail);
+        setCloudStatus('Sharing updated · invitation sent');
+      } catch (emailError) {
+        setCloudStatus(`Access granted, but email failed: ${cloudErrorMessage(emailError)}`);
+      }
     } catch (error) { setCloudStatus(cloudErrorMessage(error)); }
   };
 

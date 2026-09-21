@@ -37,4 +37,15 @@ export async function putCloudSnapshot<T>(ownerId: string, ownerEmail: string, s
 export async function removeCloudSnapshot(id: string) { const { error } = await cloud.from('nebulas').delete().eq('id', id); if (error) throw error; }
 export async function listNebulaShares(nebulaId: string): Promise<NebulaShare[]> { const { data, error } = await cloud.from('nebula_shares').select('id,nebula_id,shared_with_email,permission').eq('nebula_id', nebulaId).order('created_at'); if (error) throw error; return (data ?? []).map((r) => ({ id: r.id, nebulaId: r.nebula_id, email: r.shared_with_email, permission: r.permission })); }
 export async function shareNebula(nebulaId: string, ownerId: string, email: string, permission: 'view' | 'edit') { const { error } = await cloud.from('nebula_shares').upsert({ nebula_id: nebulaId, owner_id: ownerId, shared_with_email: email.trim().toLowerCase(), permission }, { onConflict: 'nebula_id,shared_with_email' }); if (error) throw error; }
+export async function sendShareInvitation(nebulaId: string, recipientEmail: string) {
+  const { data: { session } } = await cloud.auth.getSession();
+  if (!session?.access_token) throw new Error('Sign in again before sending an invitation.');
+  const response = await fetch('/api/share-invite', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({ nebulaId, recipientEmail }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Invitation email could not be sent.');
+}
 export async function unshareNebula(id: string) { const { error } = await cloud.from('nebula_shares').delete().eq('id', id); if (error) throw error; }
