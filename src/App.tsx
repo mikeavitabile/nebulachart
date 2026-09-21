@@ -4407,16 +4407,20 @@ const normalizeSeqForAxis = (draftNodes: NodeItem[], axisId: string) => {
 
 
 function clientToSvgPoint(clientX: number, clientY: number): { x: number; y: number } {
-  const rect = stageRef.current?.getBoundingClientRect();
-  if (!rect) return { x: cx2, y: cy2 };
+  const svg = svgExportRef.current;
+  const screenMatrix = svg?.getScreenCTM();
+  if (!svg || !screenMatrix) return { x: cx2, y: cy2 };
 
-  const nx = (clientX - rect.left) / rect.width;  // 0..1
-  const ny = (clientY - rect.top) / rect.height;  // 0..1
+  // Use the SVG's real screen transform instead of scaling against the
+  // surrounding stage. The SVG uses preserveAspectRatio="xMidYMid meet",
+  // so the stage can contain letterboxed space that would otherwise make a
+  // node jump away from the pointer as soon as dragging begins.
+  const point = svg.createSVGPoint();
+  point.x = clientX;
+  point.y = clientY;
+  const svgPoint = point.matrixTransform(screenMatrix.inverse());
 
-  return {
-    x: nx * w,
-    y: ny * h,
-  };
+  return { x: svgPoint.x, y: svgPoint.y };
 }
 
 function clampPointToOuterCircle(p: { x: number; y: number }) {
@@ -4642,14 +4646,20 @@ if (selectedNodeIdRef.current === nodeId) {
 
 
               const svgPointToClient = (x: number, y: number) => {
-                const rect = stageRef.current?.getBoundingClientRect();
-                if (!rect) return { left: 0, top: 0 };
+                const svg = svgExportRef.current;
+                const screenMatrix = svg?.getScreenCTM();
+                const stageRect = stageRef.current?.getBoundingClientRect();
+                if (!svg || !screenMatrix || !stageRect) return { left: 0, top: 0 };
 
-                // x,y are in SVG viewBox space; map into the displayed DOM size
-                const left = (x / w) * rect.width;
-                const top = (y / h) * rect.height;
+                const point = svg.createSVGPoint();
+                point.x = x;
+                point.y = y;
+                const clientPoint = point.matrixTransform(screenMatrix);
 
-                return { left, top };
+                return {
+                  left: clientPoint.x - stageRect.left,
+                  top: clientPoint.y - stageRect.top,
+                };
               };
 
               const startInlineNodeEdit = (nodeId: string, currentLabel: string, x: number, y: number) => {
