@@ -1073,6 +1073,10 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const [sharePermission, setSharePermission] = useState<'view' | 'edit'>('view');
   const [shares, setShares] = useState<NebulaShare[]>([]);
   const [presentPeople, setPresentPeople] = useState<PresentPerson[]>([]);
+  // Capture a deep link before auth/session hydration can rewrite the URL to a
+  // previously opened Nebula. This keeps inaccessible-link handling reliable
+  // for returning users as well as brand-new accounts.
+  const requestedStrategyIdRef = useRef<string | null>(getStrategyIdFromUrl());
   const cloudUserRef = useRef<string | null>(null);
   const cloudQueueRef = useRef<Promise<void>>(Promise.resolve());
   const cloudRevisionRef = useRef<Map<string, number>>(new Map());
@@ -1607,7 +1611,7 @@ wrapWidth: null,
       cloudBaseStateRef.current = new Map(next.map((snapshot) => [snapshot.id, snapshot.state]));
       cloudConflictRef.current.clear();
       setSnapshots(next);
-      const requestedId = getStrategyIdFromUrl();
+      const requestedId = requestedStrategyIdRef.current;
       const requestedSnapshot = requestedId ? next.find((snapshot) => snapshot.id === requestedId) : undefined;
       const requestedIsUnavailable = Boolean(requestedId && !requestedSnapshot);
       setUnavailableStrategyId(requestedIsUnavailable ? requestedId : null);
@@ -1832,6 +1836,7 @@ setLastSavedAt(snap.state.savedAt);
   };
 
   const createNebulaAfterUnavailableLink = () => {
+    requestedStrategyIdRef.current = null;
     setUnavailableStrategyId(null);
     const now = Date.now();
     const blank: NebulaSavedStateV1 = {
@@ -1848,6 +1853,7 @@ setLastSavedAt(snap.state.savedAt);
 
   const openOwnedNebulasAfterUnavailableLink = () => {
     const firstAvailable = snapshots[0];
+    requestedStrategyIdRef.current = null;
     setUnavailableStrategyId(null);
     if (firstAvailable) loadSnapshotById(firstAvailable.id);
     else setStrategyIdInUrl(null);
