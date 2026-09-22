@@ -1066,6 +1066,7 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const [cloudStatus, setCloudStatus] = useState("");
   const [syncStatus, setSyncStatus] = useState("");
   const [cloudLoading, setCloudLoading] = useState(false);
+  const [unavailableStrategyId, setUnavailableStrategyId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
   const [shareEmail, setShareEmail] = useState("");
@@ -1606,10 +1607,21 @@ wrapWidth: null,
       cloudBaseStateRef.current = new Map(next.map((snapshot) => [snapshot.id, snapshot.state]));
       cloudConflictRef.current.clear();
       setSnapshots(next);
-      const preferredId = getStrategyIdFromUrl() || localStorage.getItem(ACTIVE_SNAPSHOT_KEY);
-      const initial = next.find((s) => s.id === preferredId) || next[0];
+      const requestedId = getStrategyIdFromUrl();
+      const requestedSnapshot = requestedId ? next.find((snapshot) => snapshot.id === requestedId) : undefined;
+      const requestedIsUnavailable = Boolean(requestedId && !requestedSnapshot);
+      setUnavailableStrategyId(requestedIsUnavailable ? requestedId : null);
+
+      // Never silently replace an inaccessible deep link with an editable-looking
+      // local template. Wait for the user to choose where to go next.
+      const preferredId = requestedIsUnavailable
+        ? null
+        : requestedId || localStorage.getItem(ACTIVE_SNAPSHOT_KEY);
+      const initial = requestedIsUnavailable
+        ? undefined
+        : next.find((snapshot) => snapshot.id === preferredId) || next[0];
       setActiveSnapshotId(initial?.id ?? null);
-      setStrategyIdInUrl(initial?.id ?? null);
+      if (!requestedIsUnavailable) setStrategyIdInUrl(initial?.id ?? null);
       if (initial) {
         applyingRemoteRef.current = true;
         loadSnapshotIntoState(initial);
@@ -1817,6 +1829,28 @@ wrapWidth: null,
 
 setLastSavedAt(snap.state.savedAt);
 
+  };
+
+  const createNebulaAfterUnavailableLink = () => {
+    setUnavailableStrategyId(null);
+    const now = Date.now();
+    const blank: NebulaSavedStateV1 = {
+      v: 1,
+      savedAt: now,
+      title: "Untitled Strategy",
+      subtitle: "",
+      axes: BLANK_AXES,
+      rings: DEFAULT_RINGS,
+      nodes: BLANK_NODES,
+    };
+    createSnapshot("Untitled Strategy", true, blank);
+  };
+
+  const openOwnedNebulasAfterUnavailableLink = () => {
+    const firstAvailable = snapshots[0];
+    setUnavailableStrategyId(null);
+    if (firstAvailable) loadSnapshotById(firstAvailable.id);
+    else setStrategyIdInUrl(null);
   };
 
   const loadSnapshotById = (id: string) => {
@@ -2742,6 +2776,71 @@ const deleteAxis = (axisId: string) => {
               </nav>
             </>
           )}
+        </main>
+      </div>
+    );
+  }
+
+  if (unavailableStrategyId) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          padding: 24,
+          background: "#05050d",
+          color: "rgba(245,247,255,0.96)",
+        }}
+      >
+        <main
+          style={{
+            width: "min(520px, 100%)",
+            padding: "38px 34px",
+            border: "1px solid rgba(255,255,255,0.14)",
+            borderRadius: 20,
+            background: "rgba(14,14,25,0.96)",
+            boxShadow: "0 28px 80px rgba(0,0,0,0.45)",
+          }}
+        >
+          <div style={{ color: "#c09aff", fontSize: 13, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            Nebula
+          </div>
+          <h1 style={{ margin: "14px 0 14px", fontSize: 32, lineHeight: 1.08, letterSpacing: -0.8 }}>
+            This Nebula isn’t available to your account
+          </h1>
+          <p style={{ margin: "0 0 10px", color: "rgba(245,247,255,0.66)", lineHeight: 1.6 }}>
+            It may not have been shared with <strong style={{ color: "rgba(245,247,255,0.9)" }}>{cloudEmail}</strong>, or the link may no longer be valid.
+          </p>
+          <p style={{ margin: "0 0 26px", color: "rgba(245,247,255,0.66)", lineHeight: 1.6 }}>
+            Ask the person who sent it to confirm your access, or create your own Nebula now.
+          </p>
+
+          <button
+            type="button"
+            onClick={createNebulaAfterUnavailableLink}
+            style={{ width: "100%", padding: "13px 16px", border: 0, borderRadius: 10, background: "#fff", color: "#171721", fontSize: 16, fontWeight: 800 }}
+          >
+            Create a new Nebula
+          </button>
+
+          {snapshots.length > 0 && (
+            <button
+              type="button"
+              onClick={openOwnedNebulasAfterUnavailableLink}
+              style={{ width: "100%", marginTop: 10, padding: "13px 16px", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 10, background: "rgba(255,255,255,0.06)", color: "inherit", fontSize: 16, fontWeight: 750 }}
+            >
+              Open my Nebulas
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => void signOutOfCloud()}
+            style={{ display: "block", margin: "20px auto 0", padding: 4, border: 0, background: "transparent", color: "rgba(245,247,255,0.55)", fontSize: 13 }}
+          >
+            Sign in with a different account
+          </button>
         </main>
       </div>
     );
