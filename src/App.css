@@ -862,3 +862,127 @@ input:focus, select:focus, textarea:focus {
   0%, 100% { transform: scale(0.985); opacity: 0.92; }
   50%      { transform: scale(1.02);  opacity: 1.00; }
 }
+
+/* Public information and legal pages */
+.publicPageShell {
+  min-height: 100vh;
+  overflow: auto;
+  background:
+    radial-gradient(circle at 78% 12%, rgba(143, 83, 255, 0.12), transparent 32%),
+    #05050d;
+  color: rgba(245,247,255,0.92);
+}
+
+.publicHeader {
+  width: min(1040px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 24px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.publicBrand {
+  color: rgba(245,247,255,0.96);
+  font-size: 25px;
+  font-weight: 850;
+  letter-spacing: -0.7px;
+}
+
+.publicHeader nav {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.publicHeader nav a,
+.authLegalLinks a {
+  color: rgba(245,247,255,0.62);
+}
+
+.publicHeader nav a:hover,
+.authLegalLinks a:hover {
+  color: rgba(245,247,255,0.96);
+}
+
+.publicHeader .publicSignIn {
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.08);
+  color: rgba(245,247,255,0.94);
+}
+
+.publicContent {
+  width: min(760px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 88px 0 72px;
+}
+
+.publicEyebrow {
+  margin-bottom: 16px;
+  color: #c09aff;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.publicContent h1 {
+  margin: 0 0 40px;
+  font-size: clamp(42px, 8vw, 72px);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.publicBody {
+  font-size: 17px;
+  line-height: 1.75;
+  color: rgba(245,247,255,0.7);
+}
+
+.publicBody h2 {
+  margin: 42px 0 8px;
+  color: rgba(245,247,255,0.94);
+  font-size: 20px;
+}
+
+.publicBody p,
+.publicBody ul {
+  margin: 0 0 20px;
+}
+
+.publicBody a {
+  color: #d0b5ff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.publicMeta {
+  color: rgba(245,247,255,0.45);
+  font-size: 14px;
+}
+
+.publicFooter {
+  width: min(1040px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 28px 0 40px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  color: rgba(245,247,255,0.42);
+  font-size: 13px;
+}
+
+.authLegalLinks {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 18px;
+  font-size: 12px;
+}
+
+@media (max-width: 620px) {
+  .publicHeader { align-items: flex-start; }
+  .publicHeader nav { gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+  .publicContent { padding-top: 56px; }
+}

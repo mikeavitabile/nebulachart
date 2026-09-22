@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { cloud, cloudErrorMessage, CloudAccessError, CloudConflictError, listCloudSnapshots, putCloudSnapshot, removeCloudSnapshot, listNebulaShares, shareNebula, sendShareInvitation, unshareNebula, type NebulaShare, type CloudAccess } from "./cloud";
 
 import babyImg from "./assets/star-2.png";
@@ -745,7 +745,98 @@ return rawDotR(n);
 }
 
 
-export default function App() {
+type PublicPageKind = "about" | "privacy" | "terms";
+
+const PUBLIC_PAGE_COPY: Record<PublicPageKind, { title: string; eyebrow: string; body: ReactNode }> = {
+  about: {
+    eyebrow: "About Nebula",
+    title: "Shape strategy together.",
+    body: (
+      <>
+        <p>Nebula is a collaborative visual strategy-mapping tool. It helps teams organize priorities across strategic axes and time horizons, then discuss and refine the map together in real time.</p>
+        <h2>What Nebula does</h2>
+        <ul>
+          <li>Create visual strategy maps with rings, axes, and movable nodes.</li>
+          <li>Save maps securely to your account.</li>
+          <li>Share maps with view-only or editing access.</li>
+          <li>Collaborate with teammates and see changes shortly after they happen.</li>
+        </ul>
+        <p>Nebula uses Google Sign-In or passwordless email links for authentication. Google Sign-In is used only to identify you; Nebula does not request access to Gmail, Drive, Calendar, contacts, or your Google password.</p>
+      </>
+    ),
+  },
+  privacy: {
+    eyebrow: "Legal",
+    title: "Privacy Policy",
+    body: (
+      <>
+        <p className="publicMeta">Effective September 22, 2026</p>
+        <p>Nebula collects only the information needed to authenticate users, save strategy maps, support sharing, and provide collaboration features.</p>
+        <h2>Information we collect</h2>
+        <p>When you use Google Sign-In, Nebula may receive your email address, name, profile image, and a unique account identifier from Google. When you use email sign-in, Nebula receives your email address and account identifier. We also store the Nebulas you create or edit, sharing permissions, timestamps, and limited collaboration presence information.</p>
+        <h2>How we use information</h2>
+        <p>We use this information to authenticate you, display and save your work, enforce sharing permissions, synchronize collaboration, send transactional account or sharing messages, maintain security, and operate the service.</p>
+        <h2>Google user data</h2>
+        <p>Nebula requests only basic identity information through Google Sign-In. It does not access Gmail, Google Drive, Google Calendar, contacts, or your Google password. Google account information is not used for advertising and is not sold.</p>
+        <h2>Service providers</h2>
+        <p>Nebula relies on Google for optional sign-in, Supabase for authentication and cloud data, Vercel for hosting, and Resend for transactional email. These providers process information only as needed to deliver their respective services.</p>
+        <h2>Retention and deletion</h2>
+        <p>Account and workspace information is retained while your account is active or as needed to operate and protect the service. You may request deletion of your account and associated personal information by contacting us.</p>
+        <h2>Contact</h2>
+        <p>Privacy questions and deletion requests may be sent to <a href="mailto:privacy@nebulachart.com">privacy@nebulachart.com</a>.</p>
+      </>
+    ),
+  },
+  terms: {
+    eyebrow: "Legal",
+    title: "Terms of Service",
+    body: (
+      <>
+        <p className="publicMeta">Effective September 22, 2026</p>
+        <p>By using Nebula, you agree to these terms. Nebula is a collaborative strategy-mapping service that is currently evolving and may change over time.</p>
+        <h2>Your account</h2>
+        <p>You are responsible for activity performed through your account and for maintaining access to the Google account or email address you use to sign in. Do not attempt to access another person’s account.</p>
+        <h2>Your content</h2>
+        <p>You retain ownership of the content you enter into Nebula. You grant Nebula permission to store, process, and display that content solely as necessary to operate the service. You are responsible for ensuring you have the right to submit and share your content.</p>
+        <h2>Sharing and collaboration</h2>
+        <p>You control who may view or edit your Nebulas. Collaborators with editing access may change shared content. Review sharing permissions before distributing a link or invitation.</p>
+        <h2>Acceptable use</h2>
+        <p>Do not use Nebula to break the law, infringe others’ rights, distribute malicious material, probe the service for vulnerabilities, or disrupt the service or other users.</p>
+        <h2>Availability and warranty</h2>
+        <p>Nebula is provided on an “as is” and “as available” basis. We do not guarantee uninterrupted operation, permanent storage, or that every feature will remain available. Keep independent copies of critical information.</p>
+        <h2>Changes</h2>
+        <p>These terms may be updated as Nebula develops. Continued use after an update means you accept the revised terms.</p>
+        <h2>Contact</h2>
+        <p>Questions about these terms may be sent to <a href="mailto:privacy@nebulachart.com">privacy@nebulachart.com</a>.</p>
+      </>
+    ),
+  },
+};
+
+function PublicPage({ kind }: { kind: PublicPageKind }) {
+  const page = PUBLIC_PAGE_COPY[kind];
+  return (
+    <div className="publicPageShell">
+      <header className="publicHeader">
+        <a className="publicBrand" href="/">Nebula</a>
+        <nav aria-label="Public pages">
+          <a href="/about">About</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a className="publicSignIn" href="/">Sign in</a>
+        </nav>
+      </header>
+      <main className="publicContent">
+        <div className="publicEyebrow">{page.eyebrow}</div>
+        <h1>{page.title}</h1>
+        <div className="publicBody">{page.body}</div>
+      </main>
+      <footer className="publicFooter">Nebula · A visual system for shaping strategy</footer>
+    </div>
+  );
+}
+
+function NebulaApp() {
   // --- Defaults (used for Reset + as fallback) ---
   const DEFAULT_TITLE = "Example Product Strategy";
   const DEFAULT_SUBTITLE = "Nebula — Workshop Edition";
@@ -2644,6 +2735,11 @@ const deleteAxis = (axisId: string) => {
               <p role="status" style={{ minHeight: 24, margin: "14px 0 0", color: "rgba(245,247,255,0.62)", lineHeight: 1.45 }}>
                 {cloudStatus || "Choose Google or receive a secure sign-in link."}
               </p>
+              <nav className="authLegalLinks" aria-label="Legal">
+                <a href="/about">About</a>
+                <a href="/privacy">Privacy</a>
+                <a href="/terms">Terms</a>
+              </nav>
             </>
           )}
         </main>
@@ -5454,4 +5550,12 @@ if (nextSelected) expandAxis(n.axisId);
       </div>
     </div>
   );
+}
+
+export default function App() {
+  const publicPath = window.location.pathname.replace(/\/+$/, "") || "/";
+  if (publicPath === "/about") return <PublicPage kind="about" />;
+  if (publicPath === "/privacy") return <PublicPage kind="privacy" />;
+  if (publicPath === "/terms") return <PublicPage kind="terms" />;
+  return <NebulaApp />;
 }
