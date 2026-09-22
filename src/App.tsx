@@ -1561,6 +1561,20 @@ wrapWidth: null,
     setCloudStatus(error ? error.message : "Check your email for the sign-in link.");
   };
 
+  const signInWithGoogle = async () => {
+    if (!cloud) return;
+    setCloudStatus("Opening Google sign-in…");
+    const { error } = await cloud.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        // Keep the requested Nebula in the URL so a shared link survives
+        // the round trip through Google and Supabase.
+        redirectTo: window.location.origin + window.location.pathname + window.location.search,
+      },
+    });
+    if (error) setCloudStatus(error.message);
+  };
+
   const signOutOfCloud = async () => {
     if (!cloud) return;
     await cloudQueueRef.current;
@@ -1620,6 +1634,19 @@ wrapWidth: null,
       setShareStatus('Access removed');
     }
     catch (error) { setShareStatus(cloudErrorMessage(error)); }
+  };
+
+  const copyShareLink = async () => {
+    if (!activeSnapshotId) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('strategy', activeSnapshotId);
+    url.hash = '';
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      setShareStatus('Link copied');
+    } catch {
+      setShareStatus(`Copy this link: ${url.toString()}`);
+    }
   };
 
   const saveCurrentSnapshot = (reason: "manual" | "autosave" = "manual") => {
@@ -2544,54 +2571,80 @@ const deleteAxis = (axisId: string) => {
           {!authReady ? (
             <div style={{ color: "rgba(245,247,255,0.65)" }}>Checking your account…</div>
           ) : (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void sendSignInLink();
-              }}
-            >
-              <label htmlFor="nebula-sign-in-email" style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>
-                Sign in to continue
-              </label>
-              <input
-                id="nebula-sign-in-email"
-                type="email"
-                required
-                autoComplete="email"
-                value={emailInput}
-                onChange={(event) => setEmailInput(event.target.value)}
-                placeholder="Email address"
-                style={{
-                  boxSizing: "border-box",
-                  width: "100%",
-                  padding: "13px 14px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  background: "rgba(0,0,0,0.28)",
-                  color: "inherit",
-                  fontSize: 16,
-                }}
-              />
+            <>
+              <div style={{ marginBottom: 8, fontWeight: 700 }}>Sign in to continue</div>
               <button
-                type="submit"
-                disabled={!emailInput.trim() || cloudLoading}
+                type="button"
+                onClick={() => void signInWithGoogle()}
+                disabled={cloudLoading}
                 style={{
                   width: "100%",
-                  marginTop: 12,
                   padding: "13px 16px",
-                  border: 0,
+                  border: "1px solid rgba(255,255,255,0.2)",
                   borderRadius: 10,
+                  background: "#fff",
+                  color: "#1f1f1f",
                   fontSize: 16,
-                  fontWeight: 800,
-                  cursor: emailInput.trim() && !cloudLoading ? "pointer" : "default",
+                  fontWeight: 750,
+                  cursor: cloudLoading ? "default" : "pointer",
                 }}
               >
-                Email me a sign-in link
+                Continue with Google
               </button>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0", color: "rgba(245,247,255,0.4)", fontSize: 12 }}>
+                <span style={{ height: 1, flex: 1, background: "rgba(255,255,255,0.14)" }} />
+                <span>or use email</span>
+                <span style={{ height: 1, flex: 1, background: "rgba(255,255,255,0.14)" }} />
+              </div>
+
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void sendSignInLink();
+                }}
+              >
+                <input
+                  id="nebula-sign-in-email"
+                  aria-label="Email address"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={emailInput}
+                  onChange={(event) => setEmailInput(event.target.value)}
+                  placeholder="Email address"
+                  style={{
+                    boxSizing: "border-box",
+                    width: "100%",
+                    padding: "13px 14px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    background: "rgba(0,0,0,0.28)",
+                    color: "inherit",
+                    fontSize: 16,
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!emailInput.trim() || cloudLoading}
+                  style={{
+                    width: "100%",
+                    marginTop: 12,
+                    padding: "13px 16px",
+                    border: 0,
+                    borderRadius: 10,
+                    fontSize: 16,
+                    fontWeight: 800,
+                    cursor: emailInput.trim() && !cloudLoading ? "pointer" : "default",
+                  }}
+                >
+                  Email me a sign-in link
+                </button>
+              </form>
               <p role="status" style={{ minHeight: 24, margin: "14px 0 0", color: "rgba(245,247,255,0.62)", lineHeight: 1.45 }}>
-                {cloudStatus || "No password needed. We’ll email you a secure link."}
+                {cloudStatus || "Choose Google or receive a secure sign-in link."}
               </p>
-            </form>
+            </>
           )}
         </main>
       </div>
@@ -3980,7 +4033,10 @@ const deleteAxis = (axisId: string) => {
 
       {shareOpen && activeAccess === 'owner' && (
         <div style={{ width: "100%", marginTop: 10, padding: 12, border: "1px solid rgba(128,128,128,0.28)", borderRadius: 10 }}>
-          <strong>Share this Nebula</strong>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <strong>Share this Nebula</strong>
+            <button type="button" className="smallBtn" onClick={() => void copyShareLink()}>Copy link</button>
+          </div>
           <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
             <input type="email" value={shareEmail} onChange={(e) => setShareEmail(e.target.value)} placeholder="Email address" style={{ flex: "1 1 180px" }} />
             <select value={sharePermission} onChange={(e) => setSharePermission(e.target.value as 'view' | 'edit')}>
