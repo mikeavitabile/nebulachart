@@ -282,22 +282,28 @@ input:focus, select:focus, textarea:focus {
 
 .theme-island label,
 .theme-pizza label,
+.theme-boardroom label,
 .theme-island .fieldHeader,
 .theme-pizza .fieldHeader,
+.theme-boardroom .fieldHeader,
 .theme-island .viewToggle,
-.theme-pizza .viewToggle {
+.theme-pizza .viewToggle,
+.theme-boardroom .viewToggle {
   color: var(--theme-muted);
 }
 
 .theme-island .leftPanel,
-.theme-pizza .leftPanel {
+.theme-pizza .leftPanel,
+.theme-boardroom .leftPanel {
   backdrop-filter: none;
 }
 
 .theme-island .rightPanel,
 .theme-pizza .rightPanel,
+.theme-boardroom .rightPanel,
 .theme-island .mainSplit,
-.theme-pizza .mainSplit {
+.theme-pizza .mainSplit,
+.theme-boardroom .mainSplit {
   background: var(--theme-bg);
 }
 

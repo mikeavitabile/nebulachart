@@ -110,7 +110,7 @@ type NodeItem = {
   complete?: boolean;        // ✅ new: node is done
 };
 
-type ThemeId = "nebula" | "island" | "pizza" | "halloween";
+type ThemeId = "nebula" | "halloween" | "island" | "pizza" | "boardroom";
 
 type NebulaTheme = {
   id: ThemeId;
@@ -137,6 +137,7 @@ type NebulaTheme = {
 };
 
 const THEME_STORAGE_KEY = "nebula-theme-v1";
+const THEME_ORDER: ThemeId[] = ["nebula", "halloween", "island", "pizza", "boardroom"];
 
 const THEMES: Record<ThemeId, NebulaTheme> = {
   nebula: {
@@ -215,9 +216,9 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
     nodeLabelStroke: "rgba(72,18,14,0.72)",
     ringColors: { now: "#f36b4f", next: "#d83e31", later: "#9f2022" },
     blobs: [
-      { fill: "#f36b4f", stroke: "#b92e25", strokeWidth: 1.15 },
-      { fill: "#d83e31", stroke: "#99251f", strokeWidth: 1.15 },
-      { fill: "#9f2022", stroke: "#741719", strokeWidth: 1.25 },
+      { fill: "#f36b4f", stroke: "none", strokeWidth: 0 },
+      { fill: "#d83e31", stroke: "none", strokeWidth: 0 },
+      { fill: "#9f2022", stroke: "none", strokeWidth: 0 },
     ],
   },
   halloween: {
@@ -242,9 +243,36 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
     nodeLabelStroke: "rgba(0,0,0,0.82)",
     ringColors: { now: "#ffad42", next: "#f57600", later: "#b93800" },
     blobs: [
-      { fill: "rgba(255,173,66,0.28)", stroke: "none", strokeWidth: 0 },
-      { fill: "rgba(245,118,0,0.22)", stroke: "none", strokeWidth: 0 },
-      { fill: "rgba(185,56,0,0.18)", stroke: "none", strokeWidth: 0 },
+      { fill: "rgba(255,173,66,0.28)", stroke: "rgba(255,173,66,0.50)", strokeWidth: 1.15 },
+      { fill: "rgba(245,118,0,0.22)", stroke: "rgba(245,118,0,0.50)", strokeWidth: 1.15 },
+      { fill: "rgba(185,56,0,0.18)", stroke: "rgba(185,56,0,0.50)", strokeWidth: 1.25 },
+    ],
+  },
+  boardroom: {
+    id: "boardroom",
+    label: "Boardroom",
+    icon: "🏢",
+    cosmic: false,
+    chartBackground: "#f7f9fb",
+    exportBackground: "#ffffff",
+    axisColor: "rgba(38,65,89,0.44)",
+    chartText: "#1f3448",
+    chartTextMuted: "#1f3448",
+    boundaryColor: "rgba(38,65,89,0.25)",
+    nodeOutline: "rgba(25,67,103,0.62)",
+    uncommittedNode: "#f7f9fb",
+    selectionFill: "#ffffff",
+    selectionStroke: "#245f91",
+    selectionShadow: "drop-shadow(0 0 7px rgba(36,95,145,0.24))",
+    nodeColor: "#287fbd",
+    nodeRadius: 8,
+    nodeLabelColor: "#1f3448",
+    nodeLabelStroke: null,
+    ringColors: { now: "#9accec", next: "#559ed0", later: "#286690" },
+    blobs: [
+      { fill: "#9accec", stroke: "none", strokeWidth: 0 },
+      { fill: "#559ed0", stroke: "none", strokeWidth: 0 },
+      { fill: "#286690", stroke: "none", strokeWidth: 0 },
     ],
   },
 };
@@ -1030,7 +1058,7 @@ const BLANK_NODES: NodeItem[] = [];
   const [themeId, setThemeId] = useState<ThemeId>(() => {
     try {
       const saved = localStorage.getItem(THEME_STORAGE_KEY);
-      return saved === "island" || saved === "pizza" || saved === "halloween" || saved === "nebula" ? saved : "nebula";
+      return THEME_ORDER.includes(saved as ThemeId) ? saved as ThemeId : "nebula";
     } catch {
       return "nebula";
     }
@@ -3047,7 +3075,7 @@ const deleteAxis = (axisId: string) => {
         value={themeId}
         onChange={(event) => chooseTheme(event.target.value as ThemeId)}
       >
-        {(Object.keys(THEMES) as ThemeId[]).map((id) => (
+        {THEME_ORDER.map((id) => (
           <option key={id} value={id}>{THEMES[id].label}</option>
         ))}
       </select>
@@ -4467,7 +4495,7 @@ const deleteAxis = (axisId: string) => {
               value={themeId}
               onChange={(event) => chooseTheme(event.target.value as ThemeId)}
             >
-              {(Object.keys(THEMES) as ThemeId[]).map((id) => (
+              {THEME_ORDER.map((id) => (
                 <option key={id} value={id}>{THEMES[id].label}</option>
               ))}
             </select>
@@ -5242,6 +5270,12 @@ onPointerCancel={(e) => {
     <stop offset="100%" stopColor="#dca45d" />
   </radialGradient>
 
+  <radialGradient id="boardroomFieldGrad" cx="50%" cy="46%" r="72%">
+    <stop offset="0%" stopColor="#ffffff" />
+    <stop offset="62%" stopColor="#f4f7f9" />
+    <stop offset="100%" stopColor="#dce3e8" />
+  </radialGradient>
+
   <pattern id="crustSpeckles" width="54" height="54" patternUnits="userSpaceOnUse">
     <circle cx="8" cy="13" r="1.4" fill="#9b642f" opacity="0.16" />
     <circle cx="39" cy="9" r="0.9" fill="#8a5527" opacity="0.13" />
@@ -5267,7 +5301,7 @@ onPointerCancel={(e) => {
     y="0"
     width={w}
     height={h}
-    fill={theme.id === "island" ? "url(#islandWaterGrad)" : theme.id === "pizza" ? "url(#pizzaCrustGrad)" : theme.chartBackground}
+    fill={theme.id === "island" ? "url(#islandWaterGrad)" : theme.id === "pizza" ? "url(#pizzaCrustGrad)" : theme.id === "boardroom" ? "url(#boardroomFieldGrad)" : theme.chartBackground}
   />
   {theme.id === "pizza" && (
     <rect x="0" y="0" width={w} height={h} fill="url(#crustSpeckles)" />
