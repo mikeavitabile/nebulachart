@@ -5339,64 +5339,84 @@ onPointerCancel={(e) => {
                           </g>
                         );
                       })}
-{/* Center baby (on top of axis lines) */}
+{/* Theme-specific center control (on top of axis lines) */}
 {(() => {
-  const babyR = Math.max(22, ringLater * 0.10); // your size is fine, keep this
+  const iconR = Math.max(26, ringLater * 0.105);
+  const iconScale = iconR / 32;
 
   return (
-    <>
-      <defs>
-        <clipPath id="babyClip">
-          <circle cx={cx2} cy={cy2} r={babyR} />
-        </clipPath>
-      </defs>
+    <g
+      role="button"
+      aria-label={`Spin ${theme.label} center icon`}
+      onClick={(e) => {
+        e.stopPropagation();
+        const dir = nebulaSpinDirRef.current;
 
-     <g
-  onClick={(e) => {
-    e.stopPropagation();
+        try {
+          nebulaSpinAnimRef.current?.setAttribute("to", `${dir * 360} ${cx2} ${cy2}`);
+          nebulaSpinAnimRef.current?.beginElement();
+        } catch {
+          // Ignore animation failures; the chart itself remains usable.
+        }
 
-    // Set direction BEFORE starting the animation
-    const dir = nebulaSpinDirRef.current;
+        nebulaSpinDirRef.current = dir === 1 ? -1 : 1;
+      }}
+      style={{ cursor: "pointer" }}
+    >
+      <animateTransform
+        ref={nebulaSpinAnimRef}
+        attributeName="transform"
+        type="rotate"
+        from={`0 ${cx2} ${cy2}`}
+        to={`360 ${cx2} ${cy2}`}
+        dur="600ms"
+        repeatCount="1"
+        begin="indefinite"
+      />
 
-    try {
-      // rotate format is: "angle cx cy"
-      nebulaSpinAnimRef.current?.setAttribute("to", `${dir * 360} ${cx2} ${cy2}`);
-      nebulaSpinAnimRef.current?.beginElement();
-    } catch {
-      // ignore
-    }
+      <g transform={`translate(${cx2} ${cy2}) scale(${iconScale})`}>
+        {theme.id === "nebula" && (
+          <>
+            <circle r="25" fill="rgba(157,88,255,0.10)" stroke="rgba(255,255,255,0.13)" strokeWidth="1" />
+            <circle r="15" fill="rgba(255,79,160,0.12)" />
+            <path
+              d="M 0 -28 C 2 -9 5 -4 25 0 C 5 4 2 9 0 28 C -2 9 -5 4 -25 0 C -5 -4 -2 -9 0 -28 Z"
+              fill="#fffdf7"
+              stroke="#ffd9f0"
+              strokeWidth="1.2"
+              style={{ filter: "drop-shadow(0 0 5px rgba(255,255,255,0.95)) drop-shadow(0 0 9px rgba(255,79,160,0.65))" }}
+            />
+            <circle r="3.5" fill="#ffffff" />
+          </>
+        )}
 
-    // Flip direction for next click
-    nebulaSpinDirRef.current = dir === 1 ? -1 : 1;
-  }}
-  style={{ cursor: "pointer" }}
->
+        {theme.id === "island" && (
+          <>
+            <circle r="30" fill="#f6fffb" stroke="#16866b" strokeWidth="1.8" />
+            <path d="M -23 22 Q 0 12 23 22" fill="none" stroke="#58cda8" strokeWidth="5" strokeLinecap="round" />
+            <path d="M 3 21 Q 7 5 0 -8" fill="none" stroke="#9a663a" strokeWidth="5.5" strokeLinecap="round" />
+            <path d="M 0 -8 Q -13 -22 -27 -13" fill="none" stroke="#15996f" strokeWidth="5" strokeLinecap="round" />
+            <path d="M 0 -8 Q -4 -27 5 -29" fill="none" stroke="#19b982" strokeWidth="5" strokeLinecap="round" />
+            <path d="M 0 -8 Q 14 -24 27 -15" fill="none" stroke="#138a65" strokeWidth="5" strokeLinecap="round" />
+            <path d="M 0 -8 Q 18 -10 26 0" fill="none" stroke="#20aa79" strokeWidth="5" strokeLinecap="round" />
+            <path d="M 0 -8 Q -18 -9 -25 1" fill="none" stroke="#22b884" strokeWidth="5" strokeLinecap="round" />
+            <circle cy="-8" r="4" fill="#0f7658" />
+          </>
+        )}
 
-  <animateTransform
-    ref={nebulaSpinAnimRef}
-    attributeName="transform"
-    type="rotate"
-    from={`0 ${cx2} ${cy2}`}
-    to={`360 ${cx2} ${cy2}`}
-    dur="600ms"
-    repeatCount="1"
-    begin="indefinite"
-  />
-
-  <image
-    href={babyImg}
-    x={cx2 - babyR}
-    y={cy2 - babyR}
-    width={babyR * 2}
-    height={babyR * 2}
-    preserveAspectRatio="xMidYMid slice"
-    clipPath="url(#babyClip)"
-  />
-</g>
-
-
-
-    </>
+        {theme.id === "pizza" && (
+          <>
+            <circle cy="5" r="25" fill="#ffd3ad" stroke="#7d2d20" strokeWidth="2" />
+            <path d="M -21 -10 L -21 -17 Q -30 -20 -27 -29 Q -23 -37 -14 -32 Q -10 -43 0 -38 Q 10 -43 14 -32 Q 23 -37 27 -29 Q 30 -20 21 -17 L 21 -10 Z" fill="#fffdf6" stroke="#7d2d20" strokeWidth="2" strokeLinejoin="round" />
+            <path d="M -21 -10 Q 0 -5 21 -10" fill="none" stroke="#d9c7b2" strokeWidth="2" />
+            <circle cx="-9" cy="3" r="2.4" fill="#57241c" />
+            <circle cx="9" cy="3" r="2.4" fill="#57241c" />
+            <path d="M -12 12 Q -6 7 0 13 Q 6 7 12 12 Q 6 18 0 14 Q -6 18 -12 12 Z" fill="#fffdf6" stroke="#7d2d20" strokeWidth="1.5" strokeLinejoin="round" />
+            <path d="M -7 21 Q 0 25 7 21" fill="none" stroke="#9f3c2c" strokeWidth="1.8" strokeLinecap="round" />
+          </>
+        )}
+      </g>
+    </g>
   );
 })()}
 
