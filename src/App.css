@@ -28,13 +28,16 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: var(--theme-bg, #05050a);
+  color: var(--theme-text, rgba(245,247,255,0.92));
+  transition: background 180ms ease, color 180ms ease;
 }
 
 .header {
   height: 48px;
   padding: 0 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.10);
-  background: rgba(10, 10, 18, 0.55);
+  border-bottom: 1px solid var(--theme-border, rgba(255,255,255,0.10));
+  background: var(--theme-panel, rgba(10, 10, 18, 0.55));
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
@@ -44,7 +47,7 @@ body {
 
 
 .muted {
-  color: rgba(245,247,255,0.58);
+  color: var(--theme-muted, rgba(245,247,255,0.58));
   font-size: 13px;
 }
 
@@ -61,8 +64,8 @@ body {
 
 /* Left pane */
 .leftPanel {
-  border-right: 1px solid rgba(255,255,255,0.10);
-  background: rgba(10, 10, 18, 0.45);
+  border-right: 1px solid var(--theme-border, rgba(255,255,255,0.10));
+  background: var(--theme-panel, rgba(10, 10, 18, 0.45));
   backdrop-filter: blur(10px);
   padding: 16px;
   overflow: auto;
@@ -96,9 +99,9 @@ input, select, textarea {
   padding: 8px 10px;
   margin-top: 6px;
   border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(12, 12, 22, 0.55);
-  color: rgba(245,247,255,0.92);
+  border: 1px solid var(--theme-border, rgba(255,255,255,0.14));
+  background: var(--theme-input, rgba(12, 12, 22, 0.55));
+  color: var(--theme-text, rgba(245,247,255,0.92));
   font-size: 13px;
   outline: none;
   backdrop-filter: blur(10px);
@@ -161,7 +164,7 @@ input:focus, select:focus, textarea:focus {
 
 .subtitle {
   font-size: 14px;
-  color: rgba(245,247,255,0.65);
+  color: var(--theme-muted, rgba(245,247,255,0.65));
   margin-bottom: 8px;
   font-weight: 500;
   letter-spacing: 0.2px;
@@ -232,15 +235,70 @@ input:focus, select:focus, textarea:focus {
 }
 
 .smallBtn {
-  background: #111;
-  color: white;
-  border: 0;
+  background: var(--theme-button-bg, #111);
+  color: var(--theme-text, white);
+  border: 1px solid var(--theme-border, transparent);
   border-radius: 12px;
   padding: 8px 12px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.themePicker {
+  width: auto;
+  margin: 0 0 0 2px;
+  padding: 3px 6px 3px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--theme-border);
+  border-radius: 999px;
+  background: var(--theme-button-bg);
+  color: var(--theme-text);
+}
+
+.themePicker select {
+  width: auto;
+  min-width: 84px;
+  margin: 0;
+  padding: 3px 22px 3px 3px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  box-shadow: none;
+  backdrop-filter: none;
+  cursor: pointer;
+}
+
+.themePicker select:focus {
+  border: 0;
+  box-shadow: none;
+}
+
+.theme-island label,
+.theme-pizza label,
+.theme-island .fieldHeader,
+.theme-pizza .fieldHeader,
+.theme-island .viewToggle,
+.theme-pizza .viewToggle {
+  color: var(--theme-muted);
+}
+
+.theme-island .leftPanel,
+.theme-pizza .leftPanel {
+  backdrop-filter: none;
+}
+
+.theme-island .rightPanel,
+.theme-pizza .rightPanel,
+.theme-island .mainSplit,
+.theme-pizza .mainSplit {
+  background: var(--theme-bg);
 }
 
 .smallBtn:hover {

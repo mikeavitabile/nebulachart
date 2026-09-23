@@ -109,6 +109,102 @@ type NodeItem = {
   complete?: boolean;        // ✅ new: node is done
 };
 
+type ThemeId = "nebula" | "island" | "pizza";
+
+type NebulaTheme = {
+  id: ThemeId;
+  label: string;
+  icon: string;
+  cosmic: boolean;
+  chartBackground: string;
+  exportBackground: string;
+  axisColor: string;
+  chartText: string;
+  chartTextMuted: string;
+  boundaryColor: string;
+  nodeOutline: string;
+  uncommittedNode: string;
+  selectionFill: string;
+  selectionStroke: string;
+  selectionShadow: string;
+  ringColors: Record<"now" | "next" | "later", string>;
+  blobs: Array<{ fill: string; stroke: string; strokeWidth: number }>;
+};
+
+const THEME_STORAGE_KEY = "nebula-theme-v1";
+
+const THEMES: Record<ThemeId, NebulaTheme> = {
+  nebula: {
+    id: "nebula",
+    label: "Nebula",
+    icon: "✦",
+    cosmic: true,
+    chartBackground: "#05040b",
+    exportBackground: "#05050a",
+    axisColor: "rgba(255,255,255,0.16)",
+    chartText: "rgba(245,247,255,0.92)",
+    chartTextMuted: "rgba(245,247,255,0.86)",
+    boundaryColor: "rgba(255,255,255,0.16)",
+    nodeOutline: "rgba(255,255,255,0.22)",
+    uncommittedNode: "rgba(245,247,255,0.78)",
+    selectionFill: "rgba(255,255,255,0.14)",
+    selectionStroke: "#ff4fa0",
+    selectionShadow: "drop-shadow(0 0 10px rgba(255,79,160,0.28)) drop-shadow(0 0 14px rgba(157,88,255,0.20))",
+    ringColors: { now: "#FF954D", next: "#FF4FA0", later: "#9D58FF" },
+    blobs: [
+      { fill: "rgba(255,149,77,0.28)", stroke: "rgba(255,149,77,0.5)", strokeWidth: 1.15 },
+      { fill: "rgba(255,79,160,0.22)", stroke: "rgba(255,79,160,0.5)", strokeWidth: 1.15 },
+      { fill: "rgba(157,88,255,0.18)", stroke: "rgba(157,88,255,0.5)", strokeWidth: 1.25 },
+    ],
+  },
+  island: {
+    id: "island",
+    label: "Island",
+    icon: "◒",
+    cosmic: false,
+    chartBackground: "#d9f4ff",
+    exportBackground: "#ffffff",
+    axisColor: "rgba(31,57,70,0.52)",
+    chartText: "#243746",
+    chartTextMuted: "#243746",
+    boundaryColor: "rgba(31,57,70,0.24)",
+    nodeOutline: "rgba(20,87,74,0.62)",
+    uncommittedNode: "#f7fbfc",
+    selectionFill: "#ffffff",
+    selectionStroke: "#086f5a",
+    selectionShadow: "drop-shadow(0 0 7px rgba(8,111,90,0.28))",
+    ringColors: { now: "#5BE0B5", next: "#21CFA0", later: "#0E9F78" },
+    blobs: [
+      { fill: "rgba(91,224,181,0.72)", stroke: "rgba(8,111,90,0.58)", strokeWidth: 1.15 },
+      { fill: "rgba(33,207,160,0.60)", stroke: "rgba(8,111,90,0.56)", strokeWidth: 1.15 },
+      { fill: "rgba(14,159,120,0.52)", stroke: "rgba(8,111,90,0.54)", strokeWidth: 1.25 },
+    ],
+  },
+  pizza: {
+    id: "pizza",
+    label: "Pizza Sauce",
+    icon: "🍕",
+    cosmic: false,
+    chartBackground: "#f1c98e",
+    exportBackground: "#fff9ee",
+    axisColor: "rgba(82,39,22,0.50)",
+    chartText: "#4a2418",
+    chartTextMuted: "#4a2418",
+    boundaryColor: "rgba(120,63,29,0.38)",
+    nodeOutline: "rgba(91,28,19,0.64)",
+    uncommittedNode: "#fff4dc",
+    selectionFill: "#fff9ee",
+    selectionStroke: "#7d1816",
+    selectionShadow: "drop-shadow(0 0 7px rgba(125,24,22,0.32))",
+    ringColors: { now: "#F06A4E", next: "#D64535", later: "#A82524" },
+    blobs: [
+      { fill: "rgba(240,106,78,0.72)", stroke: "rgba(125,24,22,0.56)", strokeWidth: 1.15 },
+      { fill: "rgba(214,69,53,0.62)", stroke: "rgba(125,24,22,0.56)", strokeWidth: 1.15 },
+      { fill: "rgba(168,37,36,0.54)", stroke: "rgba(100,22,20,0.58)", strokeWidth: 1.25 },
+    ],
+  },
+};
+
 
 // Built-in snapshot templates (module-scope so they’re safe to reference)
 const BUILTIN_BLANK_SNAPSHOT: NebulaSnapshotV1 = {
@@ -447,6 +543,7 @@ function BlobLayer(props: {
   showNowBlob: boolean;
   showNextBlob: boolean;
   showLaterBlob: boolean;
+  theme: NebulaTheme;
 }) {
   const {
     axes,
@@ -460,6 +557,7 @@ function BlobLayer(props: {
     showNowBlob,
     showNextBlob,
     showLaterBlob,
+    theme,
   } = props;
 
   // ringId -> rank based on current ring order (Now=0, Next=1, Later=2)
@@ -474,12 +572,7 @@ function BlobLayer(props: {
   if (rings[1]) ringRadiusById[rings[1].id] = ringNext;
   if (rings[2]) ringRadiusById[rings[2].id] = ringLater;
 
-  // Nebula styling (Now → Next → Later): orange → pink → purple, soft + translucent
-  const styles = [
-    { fill: "rgba(255, 149, 77, 0.28)", stroke: "rgba(255, 149, 77, 0.5)", strokeWidth: 1.15 }, // now
-    { fill: "rgba(255, 79, 160, 0.22)", stroke: "rgba(255, 79, 160, 0.5)", strokeWidth: 1.15 }, // next
-    { fill: "rgba(157, 88, 255, 0.18)", stroke: "rgba(157, 88, 255, 0.5)", strokeWidth: 1.25 }, // later
-  ];
+  const styles = theme.blobs;
 
 
   // Smooth path helpers (Catmull-Rom -> cubic Bezier), closed loop
@@ -890,6 +983,22 @@ const BLANK_NODES: NodeItem[] = [];
   const [axes, setAxes] = useState<Axis[]>(DEFAULT_AXES);
   const [rings, setRings] = useState<Ring[]>(DEFAULT_RINGS);
   const [nodes, setNodes] = useState<NodeItem[]>(DEFAULT_NODES);
+  const [themeId, setThemeId] = useState<ThemeId>(() => {
+    try {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY);
+      return saved === "island" || saved === "pizza" || saved === "nebula" ? saved : "nebula";
+    } catch {
+      return "nebula";
+    }
+  });
+  const theme = THEMES[themeId];
+
+  const chooseTheme = (nextTheme: ThemeId) => {
+    setThemeId(nextTheme);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    } catch {}
+  };
 
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
     const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(() => {
@@ -990,19 +1099,15 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const [showLaterBlob, setShowLaterBlob] = useState(true);
 
   // --- Ring toggle button styling ---
-  const RING_COLORS: Record<string, string> = {
-    now: "#FF954D",   // orange
-    next: "#FF4FA0",  // pink
-    later: "#9D58FF", // purple
-  };
+  const RING_COLORS: Record<string, string> = theme.ringColors;
 
 
     const ringToggleBtnStyle = (on: boolean, color: string) => ({
     padding: "6px 10px",
     borderRadius: 999,
-    border: `1px solid ${on ? "rgba(255,255,255,0.18)" : `${color}`}`,
-    background: on ? `${color}22` : "rgba(255,255,255,0.06)", // translucent tint when on
-    color: "rgba(245,247,255,0.92)",
+    border: `1px solid ${on ? "var(--theme-border)" : `${color}`}`,
+    background: on ? `${color}33` : "var(--theme-button-bg)",
+    color: "var(--theme-text)",
     fontSize: 13,
     fontWeight: 700,
     cursor: "pointer",
@@ -1016,9 +1121,9 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   const ringMasterBtnStyle = (on: boolean) => ({
     padding: "6px 10px",
     borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.18)",
-    background: on ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.06)",
-    color: "rgba(245,247,255,0.92)",
+    border: "1px solid var(--theme-border)",
+    background: on ? "var(--theme-button-active)" : "var(--theme-button-bg)",
+    color: "var(--theme-text)",
     fontSize: 13,
     fontWeight: 850,
     cursor: "pointer",
@@ -1030,13 +1135,13 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   // --- Dark mode form controls (used by Nodes editor) ---
   const darkFieldStyle: React.CSSProperties = {
     width: "100%",
-    background: "rgba(0,0,0,0.55)",              // key fix: make it actually dark
-    color: "rgba(245,247,255,0.92)",
-    border: "1px solid rgba(255,255,255,0.20)",
+    background: "var(--theme-input)",
+    color: "var(--theme-text)",
+    border: "1px solid var(--theme-border)",
     borderRadius: 10,
     outline: "none",
     boxShadow:
-      "0 0 0 1px rgba(255,255,255,0.06) inset, 0 10px 24px rgba(0,0,0,0.25)",
+      "0 0 0 1px var(--theme-border) inset, 0 10px 24px rgba(0,0,0,0.12)",
     backdropFilter: "blur(8px)",
   };
 
@@ -1459,9 +1564,9 @@ wrapWidth: null,
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("No canvas context");
 
-      // White background for decks
+      // Match the selected personal theme in exported images.
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = theme.exportBackground;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Render SVG into an <img>
@@ -2853,7 +2958,22 @@ const deleteAxis = (axisId: string) => {
   }
 
   return (
-    <div className={`appShell ${leftCollapsed ? "noTopHeader" : ""}`}>
+    <div
+      className={`appShell theme-${themeId} ${leftCollapsed ? "noTopHeader" : ""}`}
+      data-theme={themeId}
+      style={{
+        "--theme-bg": themeId === "nebula" ? "#05050a" : themeId === "island" ? "#f7fbfc" : "#fff9ee",
+        "--theme-panel": themeId === "nebula" ? "rgba(10,10,18,0.55)" : themeId === "island" ? "rgba(255,255,255,0.88)" : "rgba(255,249,238,0.90)",
+        "--theme-panel-solid": themeId === "nebula" ? "#0c0c16" : themeId === "island" ? "#ffffff" : "#fff9ee",
+        "--theme-text": themeId === "nebula" ? "rgba(245,247,255,0.92)" : themeId === "island" ? "#243746" : "#4a2418",
+        "--theme-muted": themeId === "nebula" ? "rgba(245,247,255,0.58)" : themeId === "island" ? "#62747d" : "#805f4e",
+        "--theme-border": themeId === "nebula" ? "rgba(255,255,255,0.14)" : themeId === "island" ? "rgba(36,55,70,0.20)" : "rgba(100,48,25,0.22)",
+        "--theme-button-bg": themeId === "nebula" ? "rgba(255,255,255,0.06)" : themeId === "island" ? "rgba(36,55,70,0.07)" : "rgba(120,63,29,0.08)",
+        "--theme-button-active": themeId === "nebula" ? "rgba(255,255,255,0.10)" : themeId === "island" ? "rgba(14,159,120,0.16)" : "rgba(214,69,53,0.15)",
+        "--theme-input": themeId === "nebula" ? "rgba(12,12,22,0.55)" : themeId === "island" ? "rgba(255,255,255,0.94)" : "rgba(255,253,248,0.94)",
+        "--theme-accent": theme.ringColors.next,
+      } as CSSProperties}
+    >
       {!leftCollapsed && (
   <header className="header">
     <strong>Nebula</strong>
@@ -2868,6 +2988,19 @@ const deleteAxis = (axisId: string) => {
     >
       Guidebook
     </button>
+
+    <label className="themePicker" title="Choose your personal visual theme">
+      <span aria-hidden="true">{theme.icon}</span>
+      <select
+        aria-label="Visual theme"
+        value={themeId}
+        onChange={(event) => chooseTheme(event.target.value as ThemeId)}
+      >
+        {(Object.keys(THEMES) as ThemeId[]).map((id) => (
+          <option key={id} value={id}>{THEMES[id].label}</option>
+        ))}
+      </select>
+    </label>
 
     <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
       {presentPeople.length > 0 && (
@@ -2886,7 +3019,7 @@ const deleteAxis = (axisId: string) => {
                 height: 30,
                 marginLeft: index === 0 ? 0 : -7,
                 borderRadius: "50%",
-                border: "2px solid #0a0a12",
+                border: "2px solid var(--theme-panel-solid)",
                 background: person.color,
                 display: "grid",
                 placeItems: "center",
@@ -2909,9 +3042,9 @@ const deleteAxis = (axisId: string) => {
                 height: 30,
                 marginLeft: -7,
                 borderRadius: "50%",
-                border: "2px solid #0a0a12",
-                background: "#343442",
-                color: "white",
+                border: "2px solid var(--theme-panel-solid)",
+                background: "var(--theme-button-active)",
+                color: "var(--theme-text)",
                 display: "grid",
                 placeItems: "center",
                 fontSize: 10,
@@ -3478,16 +3611,15 @@ const deleteAxis = (axisId: string) => {
   key={axis.id}
   className="nodeAxisGroup"
   style={{
-    background: "rgba(0,0,0,0.40)",
+    background: "var(--theme-panel-solid)",
     borderRadius: 14,
     padding: 10,
-    border: "1px solid rgba(255,255,255,0.18)",
+    border: "1px solid var(--theme-border)",
 
     boxShadow: `
-      0 0 0 1px rgba(255,255,255,0.06) inset,
-      0 0 18px rgba(157,88,255,0.35),
-      0 0 36px rgba(255,79,160,0.20),
-      0 18px 40px rgba(0,0,0,0.45)
+      0 0 0 1px var(--theme-border) inset,
+      0 0 18px color-mix(in srgb, var(--theme-accent) 22%, transparent),
+      0 18px 40px rgba(0,0,0,0.18)
     `,
     backdropFilter: "blur(10px)",
   }}
@@ -3660,25 +3792,24 @@ const deleteAxis = (axisId: string) => {
 }}
   style={{
     cursor: "pointer",
-    background: "rgba(0,0,0,0.40)",
+    background: "var(--theme-panel-solid)",
     opacity: n.complete ? 0.72 : 1,
 
     borderRadius: 14,
     padding: 12,
-    border: "1px solid rgba(255,255,255,0.18)",
-    color: "rgba(255,255,255,0.92)",
+    border: "1px solid var(--theme-border)",
+    color: "var(--theme-text)",
     boxShadow: `
-      0 0 0 1px rgba(255,255,255,0.06) inset,
-      0 0 18px rgba(157,88,255,0.35),
-      0 0 36px rgba(255,79,160,0.20),
-      0 18px 40px rgba(0,0,0,0.45)
+      0 0 0 1px var(--theme-border) inset,
+      0 0 18px color-mix(in srgb, var(--theme-accent) 22%, transparent),
+      0 18px 40px rgba(0,0,0,0.18)
     `,
     backdropFilter: "blur(10px)",
   }}
 >
 
                                 <div className="nodeMeta">
-                                  <div className="nodeLabel" style={{ color: "rgba(255,255,255,0.65)", letterSpacing: 0.6 }}>
+                                <div className="nodeLabel" style={{ color: "var(--theme-muted)", letterSpacing: 0.6 }}>
   Node
 </div>
 
@@ -3756,7 +3887,7 @@ const deleteAxis = (axisId: string) => {
 
                                 <div className="nodeControls">
                                   <div className="nodeControl">
-                                    <div className="nodeLabel" style={{ color: "rgba(255,255,255,0.65)", letterSpacing: 0.6 }}>
+                                    <div className="nodeLabel" style={{ color: "var(--theme-muted)", letterSpacing: 0.6 }}>
   Ring
 </div>
 
@@ -5042,9 +5173,14 @@ onPointerCancel={(e) => {
   <g>
  {/* Space background (inside boundary) */}
 <g clipPath="url(#oceanClip)">
-  <rect x="0" y="0" width={w} height={h} fill="url(#spaceVignette)" />
-  <rect x="0" y="0" width={w} height={h} fill="url(#starsPattern)" opacity={0.9} />
-  <rect x="0" y="0" width={w} height={h} fill="url(#nebulaHaze)" opacity={1} />
+  <rect x="0" y="0" width={w} height={h} fill={theme.chartBackground} />
+  {theme.cosmic && (
+    <>
+      <rect x="0" y="0" width={w} height={h} fill="url(#spaceVignette)" />
+      <rect x="0" y="0" width={w} height={h} fill="url(#starsPattern)" opacity={0.9} />
+      <rect x="0" y="0" width={w} height={h} fill="url(#nebulaHaze)" opacity={1} />
+    </>
+  )}
 </g>
 
 
@@ -5065,6 +5201,7 @@ onPointerCancel={(e) => {
     showNowBlob={showNowBlob}
     showNextBlob={showNextBlob}
     showLaterBlob={showLaterBlob}
+    theme={theme}
   />
 ) : null}
 
@@ -5078,9 +5215,9 @@ onPointerCancel={(e) => {
     cy={cy2}
     r={ringLater}
     fill="none"
-    stroke="url(#eventHorizonGrad)"
+    stroke={theme.cosmic ? "url(#eventHorizonGrad)" : theme.boundaryColor}
     strokeWidth={10}
-    opacity={0.22}
+    opacity={theme.cosmic ? 0.22 : 0.16}
     filter="url(#haloBlur)"
   />
   {/* crisp rim */}
@@ -5089,7 +5226,7 @@ onPointerCancel={(e) => {
     cy={cy2}
     r={ringLater}
     fill="none"
-    stroke="rgba(255,255,255,0.16)"
+    stroke={theme.boundaryColor}
     strokeWidth={1.25}
   />
 </g>
@@ -5115,7 +5252,7 @@ onPointerCancel={(e) => {
 
                         return (
                           <g key={a.id}>
-                            <line x1={cx2} y1={cy2} x2={x2} y2={y2} stroke="rgba(255,255,255,0.16)" strokeWidth={2} />
+                            <line x1={cx2} y1={cy2} x2={x2} y2={y2} stroke={theme.axisColor} strokeWidth={2} />
 
 
                             <text
@@ -5124,7 +5261,7 @@ onPointerCancel={(e) => {
                               textAnchor={anchor}
                               dominantBaseline="middle"
                               fontSize="18"
-                              fill="rgba(245,247,255,0.92)"
+                              fill={theme.chartText}
                               style={{ cursor: "pointer", userSelect: "none", fontWeight: 500 }}
                               onMouseEnter={(e) => {
                                 const rect = stageRef.current?.getBoundingClientRect();
@@ -5446,19 +5583,19 @@ if (nextSelected) expandAxis(n.axisId);
 
   fill={
     isSelected
-      ? "rgba(255,255,255,0.14)"
+      ? theme.selectionFill
       : (n.ringId === "uncommitted"
-          ? "rgba(245,247,255,0.78)"
-          : ((RING_COLORS[n.ringId] ? `${RING_COLORS[n.ringId]}CC` : "rgba(245,247,255,0.78)")))
+          ? theme.uncommittedNode
+          : ((RING_COLORS[n.ringId] ? `${RING_COLORS[n.ringId]}CC` : theme.uncommittedNode)))
   }
   stroke={
     isSelected
-      ? "url(#eventHorizonGrad)"
-      : "rgba(255,255,255,0.22)"
+      ? theme.selectionStroke
+      : theme.nodeOutline
   }
   strokeWidth={isSelected ? 3 : 1.25}
   style={{
-    filter: isSelected ? "drop-shadow(0 0 10px rgba(255,79,160,0.28)) drop-shadow(0 0 14px rgba(157,88,255,0.20))" : "none",
+    filter: isSelected ? theme.selectionShadow : "none",
   }}
   onDoubleClick={(e) => {
     e.preventDefault();
@@ -5488,7 +5625,7 @@ if (nextSelected) expandAxis(n.axisId);
         x={textX}
         y={startY}
         fontSize={NODE_LABEL_FONT_SIZE}
-        fill={isSelected ? "rgba(255,255,255,0.96)" : "rgba(245,247,255,0.86)"}
+        fill={isSelected ? theme.chartText : theme.chartTextMuted}
 
         style={{ fontWeight: isSelected ? 600 : 300, cursor: "text", userSelect: "none" }}
         onDoubleClick={(e) => {
@@ -5526,7 +5663,7 @@ if (nextSelected) expandAxis(n.axisId);
             y1={startY - 10}
             x2={textX + (n.wrapWidth ?? DEFAULT_NODE_WRAP_WIDTH)}
             y2={startY + (lines.length - 1) * lineH + 10}
-            stroke="rgba(255,255,255,0.16)"
+            stroke={theme.boundaryColor}
             strokeWidth={1}
           />
 
@@ -5537,7 +5674,7 @@ if (nextSelected) expandAxis(n.axisId);
             width={10}
             height={12}
             rx={4}
-            fill="rgba(255,255,255,0.16)"
+            fill={theme.boundaryColor}
             style={{ cursor: "ew-resize" }}
           />
         </g>
