@@ -243,9 +243,9 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
     nodeLabelStroke: "rgba(0,0,0,0.82)",
     ringColors: { now: "#ffad42", next: "#f57600", later: "#b93800" },
     blobs: [
-      { fill: "rgba(255,173,66,0.28)", stroke: "rgba(255,173,66,0.50)", strokeWidth: 1.15 },
-      { fill: "rgba(245,118,0,0.22)", stroke: "rgba(245,118,0,0.50)", strokeWidth: 1.15 },
-      { fill: "rgba(185,56,0,0.18)", stroke: "rgba(185,56,0,0.50)", strokeWidth: 1.25 },
+      { fill: "rgba(255,173,66,0.28)", stroke: "none", strokeWidth: 0 },
+      { fill: "rgba(245,118,0,0.22)", stroke: "none", strokeWidth: 0 },
+      { fill: "rgba(185,56,0,0.18)", stroke: "none", strokeWidth: 0 },
     ],
   },
   boardroom: {
@@ -270,9 +270,9 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
     nodeLabelStroke: null,
     ringColors: { now: "#9accec", next: "#559ed0", later: "#286690" },
     blobs: [
-      { fill: "#9accec", stroke: "none", strokeWidth: 0 },
-      { fill: "#559ed0", stroke: "none", strokeWidth: 0 },
-      { fill: "#286690", stroke: "none", strokeWidth: 0 },
+      { fill: "rgba(154,204,236,0.28)", stroke: "none", strokeWidth: 0 },
+      { fill: "rgba(85,158,208,0.22)", stroke: "none", strokeWidth: 0 },
+      { fill: "rgba(40,102,144,0.18)", stroke: "none", strokeWidth: 0 },
     ],
   },
 };
@@ -1172,20 +1172,25 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
 
   // --- Ring toggle button styling ---
   const RING_COLORS: Record<string, string> = theme.ringColors;
+  const RING_BLOB_FILLS: Record<"now" | "next" | "later", string> = {
+    now: theme.blobs[0].fill,
+    next: theme.blobs[1].fill,
+    later: theme.blobs[2].fill,
+  };
 
 
     const ringToggleBtnStyle = (on: boolean, color: string) => ({
     padding: "6px 10px",
     borderRadius: 999,
     border: `1px solid ${on ? "var(--theme-border)" : `${color}`}`,
-    background: on ? `${color}33` : "var(--theme-button-bg)",
+    background: on ? color : "var(--theme-button-bg)",
     color: "var(--theme-text)",
     fontSize: 13,
     fontWeight: 700,
     cursor: "pointer",
     lineHeight: 1,
     boxShadow: theme.id === "nebula" && on
-      ? `0 10px 26px ${color}33, 0 0 0 1px rgba(255,255,255,0.06) inset`
+      ? "0 10px 26px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.06) inset"
       : theme.id === "nebula" ? "0 0 0 1px rgba(255,255,255,0.04) inset" : "none",
     backdropFilter: "blur(6px)",
   });
@@ -4547,7 +4552,7 @@ const deleteAxis = (axisId: string) => {
 
                         <button
                           type="button"
-                          style={ringToggleBtnStyle(showNowBlob, RING_COLORS.now)}
+                          style={ringToggleBtnStyle(showNowBlob, RING_BLOB_FILLS.now)}
                           onClick={() => {
                             const next = !showNowBlob;
                             setShowNowBlob(next);
@@ -4564,7 +4569,7 @@ const deleteAxis = (axisId: string) => {
 
                         <button
                           type="button"
-                          style={ringToggleBtnStyle(showNextBlob, RING_COLORS.next)}
+                          style={ringToggleBtnStyle(showNextBlob, RING_BLOB_FILLS.next)}
                           onClick={() => {
                             const next = !showNextBlob;
                             setShowNextBlob(next);
@@ -4581,7 +4586,7 @@ const deleteAxis = (axisId: string) => {
 
                         <button
                           type="button"
-                          style={ringToggleBtnStyle(showLaterBlob, RING_COLORS.later)}
+                          style={ringToggleBtnStyle(showLaterBlob, RING_BLOB_FILLS.later)}
                           onClick={() => {
                             const next = !showLaterBlob;
                             setShowLaterBlob(next);
@@ -4689,7 +4694,7 @@ const deleteAxis = (axisId: string) => {
 
                   <button
                     type="button"
-                    style={ringToggleBtnStyle(showNowBlob, RING_COLORS.now)}
+                    style={ringToggleBtnStyle(showNowBlob, RING_BLOB_FILLS.now)}
                     onClick={() => {
                       const next = !showNowBlob;
                       setShowNowBlob(next);
@@ -4705,7 +4710,7 @@ const deleteAxis = (axisId: string) => {
 
                   <button
                     type="button"
-                    style={ringToggleBtnStyle(showNextBlob, RING_COLORS.next)}
+                    style={ringToggleBtnStyle(showNextBlob, RING_BLOB_FILLS.next)}
                     onClick={() => {
                       const next = !showNextBlob;
                       setShowNextBlob(next);
@@ -4722,7 +4727,7 @@ const deleteAxis = (axisId: string) => {
 
                   <button
                     type="button"
-                    style={ringToggleBtnStyle(showLaterBlob, RING_COLORS.later)}
+                    style={ringToggleBtnStyle(showLaterBlob, RING_BLOB_FILLS.later)}
                     onClick={() => {
                       const next = !showLaterBlob;
                       setShowLaterBlob(next);
