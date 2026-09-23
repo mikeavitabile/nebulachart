@@ -282,27 +282,33 @@ input:focus, select:focus, textarea:focus {
 
 .theme-island label,
 .theme-pizza label,
+.theme-boredroom label,
 .theme-boardroom label,
 .theme-island .fieldHeader,
 .theme-pizza .fieldHeader,
+.theme-boredroom .fieldHeader,
 .theme-boardroom .fieldHeader,
 .theme-island .viewToggle,
 .theme-pizza .viewToggle,
+.theme-boredroom .viewToggle,
 .theme-boardroom .viewToggle {
   color: var(--theme-muted);
 }
 
 .theme-island .leftPanel,
 .theme-pizza .leftPanel,
+.theme-boredroom .leftPanel,
 .theme-boardroom .leftPanel {
   backdrop-filter: none;
 }
 
 .theme-island .rightPanel,
 .theme-pizza .rightPanel,
+.theme-boredroom .rightPanel,
 .theme-boardroom .rightPanel,
 .theme-island .mainSplit,
 .theme-pizza .mainSplit,
+.theme-boredroom .mainSplit,
 .theme-boardroom .mainSplit {
   background: var(--theme-bg);
 }

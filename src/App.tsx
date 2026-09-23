@@ -110,7 +110,7 @@ type NodeItem = {
   complete?: boolean;        // ✅ new: node is done
 };
 
-type ThemeId = "nebula" | "halloween" | "island" | "pizza" | "boardroom";
+type ThemeId = "nebula" | "halloween" | "island" | "pizza" | "boredroom" | "boardroom";
 
 type NebulaTheme = {
   id: ThemeId;
@@ -133,11 +133,11 @@ type NebulaTheme = {
   nodeLabelColor: string;
   nodeLabelStroke: string | null;
   ringColors: Record<"now" | "next" | "later", string>;
-  blobs: Array<{ fill: string; stroke: string; strokeWidth: number }>;
+  blobs: Array<{ fill: string; toggleFill?: string; stroke: string; strokeWidth: number }>;
 };
 
 const THEME_STORAGE_KEY = "nebula-theme-v1";
-const THEME_ORDER: ThemeId[] = ["nebula", "halloween", "island", "pizza", "boardroom"];
+const THEME_ORDER: ThemeId[] = ["nebula", "halloween", "island", "pizza", "boredroom", "boardroom"];
 
 const THEMES: Record<ThemeId, NebulaTheme> = {
   nebula: {
@@ -248,9 +248,9 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
       { fill: "rgba(185,56,0,0.18)", stroke: "none", strokeWidth: 0 },
     ],
   },
-  boardroom: {
-    id: "boardroom",
-    label: "Boardroom",
+  boredroom: {
+    id: "boredroom",
+    label: "Boredroom",
     icon: "🏢",
     cosmic: false,
     chartBackground: "#f7f9fb",
@@ -273,6 +273,48 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
       { fill: "rgba(202,228,245,0.72)", stroke: "rgba(85,158,208,0.78)", strokeWidth: 1.1 },
       { fill: "rgba(85,158,208,0.38)", stroke: "rgba(40,102,144,0.66)", strokeWidth: 1.1 },
       { fill: "rgba(40,102,144,0.18)", stroke: "rgba(31,82,119,0.58)", strokeWidth: 1.1 },
+    ],
+  },
+  boardroom: {
+    id: "boardroom",
+    label: "Boardroom",
+    icon: "🏢",
+    cosmic: false,
+    chartBackground: "#fcfbf8",
+    exportBackground: "#fcfbf8",
+    axisColor: "rgba(35,55,78,0.42)",
+    chartText: "#14263b",
+    chartTextMuted: "#233b55",
+    boundaryColor: "rgba(35,55,78,0.24)",
+    nodeOutline: "rgba(255,255,255,0.88)",
+    uncommittedNode: "#f8fbfd",
+    selectionFill: "#ffffff",
+    selectionStroke: "#245fc5",
+    selectionShadow: "drop-shadow(0 0 7px rgba(36,95,197,0.28))",
+    nodeColor: "#173f78",
+    nodeRadius: 8,
+    nodeLabelColor: "#14263b",
+    nodeLabelStroke: null,
+    ringColors: { now: "#79d3e5", next: "#397fda", later: "#263f8f" },
+    blobs: [
+      {
+        fill: "url(#boardroomNowGrad)",
+        toggleFill: "linear-gradient(135deg, rgba(221,249,250,0.92), rgba(111,211,228,0.78))",
+        stroke: "rgba(45,150,181,0.76)",
+        strokeWidth: 1.15,
+      },
+      {
+        fill: "url(#boardroomNextGrad)",
+        toggleFill: "linear-gradient(135deg, rgba(86,174,230,0.62), rgba(48,88,190,0.72))",
+        stroke: "rgba(45,91,183,0.72)",
+        strokeWidth: 1.15,
+      },
+      {
+        fill: "url(#boardroomLaterGrad)",
+        toggleFill: "linear-gradient(135deg, rgba(73,111,202,0.52), rgba(31,50,123,0.68))",
+        stroke: "rgba(31,50,123,0.68)",
+        strokeWidth: 1.15,
+      },
     ],
   },
 };
@@ -1173,16 +1215,16 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
   // --- Ring toggle button styling ---
   const RING_COLORS: Record<string, string> = theme.ringColors;
   const RING_BLOB_FILLS: Record<"now" | "next" | "later", string> = {
-    now: theme.blobs[0].fill,
-    next: theme.blobs[1].fill,
-    later: theme.blobs[2].fill,
+    now: theme.blobs[0].toggleFill ?? theme.blobs[0].fill,
+    next: theme.blobs[1].toggleFill ?? theme.blobs[1].fill,
+    later: theme.blobs[2].toggleFill ?? theme.blobs[2].fill,
   };
 
 
     const ringToggleBtnStyle = (on: boolean, color: string) => ({
     padding: "6px 10px",
     borderRadius: 999,
-    border: `1px solid ${on ? "var(--theme-border)" : `${color}`}`,
+    border: `1px solid ${on || color.startsWith("linear-gradient") ? "var(--theme-border)" : color}`,
     background: on ? color : "var(--theme-button-bg)",
     color: "var(--theme-text)",
     fontSize: 13,
@@ -5275,11 +5317,32 @@ onPointerCancel={(e) => {
     <stop offset="100%" stopColor="#dca45d" />
   </radialGradient>
 
-  <radialGradient id="boardroomFieldGrad" cx="50%" cy="46%" r="72%">
+  <radialGradient id="boredroomFieldGrad" cx="50%" cy="46%" r="72%">
     <stop offset="0%" stopColor="#ffffff" />
     <stop offset="62%" stopColor="#f4f7f9" />
     <stop offset="100%" stopColor="#dce3e8" />
   </radialGradient>
+
+  <radialGradient id="boardroomFieldGrad" cx="46%" cy="40%" r="78%">
+    <stop offset="0%" stopColor="#fffefa" />
+    <stop offset="66%" stopColor="#faf8f3" />
+    <stop offset="100%" stopColor="#e8e4dc" />
+  </radialGradient>
+
+  <linearGradient id="boardroomNowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stopColor="rgba(221,249,250,0.94)" />
+    <stop offset="100%" stopColor="rgba(111,211,228,0.78)" />
+  </linearGradient>
+
+  <linearGradient id="boardroomNextGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stopColor="rgba(86,174,230,0.50)" />
+    <stop offset="100%" stopColor="rgba(48,88,190,0.62)" />
+  </linearGradient>
+
+  <linearGradient id="boardroomLaterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stopColor="rgba(73,111,202,0.34)" />
+    <stop offset="100%" stopColor="rgba(31,50,123,0.48)" />
+  </linearGradient>
 
   <pattern id="crustSpeckles" width="54" height="54" patternUnits="userSpaceOnUse">
     <circle cx="8" cy="13" r="1.4" fill="#9b642f" opacity="0.16" />
@@ -5306,7 +5369,7 @@ onPointerCancel={(e) => {
     y="0"
     width={w}
     height={h}
-    fill={theme.id === "island" ? "url(#islandWaterGrad)" : theme.id === "pizza" ? "url(#pizzaCrustGrad)" : theme.id === "boardroom" ? "url(#boardroomFieldGrad)" : theme.chartBackground}
+    fill={theme.id === "island" ? "url(#islandWaterGrad)" : theme.id === "pizza" ? "url(#pizzaCrustGrad)" : theme.id === "boredroom" ? "url(#boredroomFieldGrad)" : theme.id === "boardroom" ? "url(#boardroomFieldGrad)" : theme.chartBackground}
   />
   {theme.id === "pizza" && (
     <rect x="0" y="0" width={w} height={h} fill="url(#crustSpeckles)" />
