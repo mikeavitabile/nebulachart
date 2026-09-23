@@ -286,7 +286,7 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
     chartText: "#14263b",
     chartTextMuted: "#233b55",
     boundaryColor: "rgba(35,55,78,0.24)",
-    nodeOutline: "rgba(255,255,255,0.88)",
+    nodeOutline: "none",
     uncommittedNode: "#f8fbfd",
     selectionFill: "#ffffff",
     selectionStroke: "#245fc5",
@@ -295,7 +295,7 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
     nodeRadius: 8,
     nodeLabelColor: "#14263b",
     nodeLabelStroke: null,
-    ringColors: { now: "#79d3e5", next: "#397fda", later: "#263f8f" },
+    ringColors: { now: "#79d3e5", next: "#397fda", later: "#1f669d" },
     blobs: [
       {
         fill: "url(#boardroomNowGrad)",
@@ -311,8 +311,8 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
       },
       {
         fill: "url(#boardroomLaterGrad)",
-        toggleFill: "linear-gradient(135deg, rgba(73,111,202,0.52), rgba(31,50,123,0.68))",
-        stroke: "rgba(31,50,123,0.68)",
+        toggleFill: "linear-gradient(135deg, rgba(38,115,178,0.58), rgba(18,74,125,0.72))",
+        stroke: "rgba(18,74,125,0.72)",
         strokeWidth: 1.15,
       },
     ],
@@ -5340,8 +5340,8 @@ onPointerCancel={(e) => {
   </linearGradient>
 
   <linearGradient id="boardroomLaterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-    <stop offset="0%" stopColor="rgba(73,111,202,0.34)" />
-    <stop offset="100%" stopColor="rgba(31,50,123,0.48)" />
+    <stop offset="0%" stopColor="rgba(38,115,178,0.42)" />
+    <stop offset="100%" stopColor="rgba(18,74,125,0.58)" />
   </linearGradient>
 
   <pattern id="crustSpeckles" width="54" height="54" patternUnits="userSpaceOnUse">
