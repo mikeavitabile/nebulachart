@@ -170,7 +170,7 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
   island: {
     id: "island",
     label: "Island",
-    icon: "◒",
+    icon: "🌴",
     cosmic: false,
     chartBackground: "#d9f4ff",
     exportBackground: "#ffffff",
@@ -4200,7 +4200,7 @@ const deleteAxis = (axisId: string) => {
 
     {/* Action buttons */}
     <div style={{ marginTop: 10, width: "100%" }}>
-      {/* Row 1: Save / Save As / Dupe / New */}
+      {/* Primary strategy actions */}
       <div
         style={{
           display: "flex",
@@ -4274,83 +4274,6 @@ const deleteAxis = (axisId: string) => {
           title="Start a brand new blank strategy"
         >
           New
-        </button>
-      </div>
-
-      {/* Row 2: Export / Import / Delete */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          width: "100%",
-          flexWrap: "wrap",
-          marginTop: 8,
-        }}
-      >
-        <div style={{ position: "relative" }}>
-          <button
-            className="smallBtn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setExportMenuOpen((v) => !v);
-            }}
-            title="Export this strategy"
-            disabled={!activeSnapshotId}
-          >
-            Export ▾
-          </button>
-
-          {exportMenuOpen && (
-            <div
-              onMouseDown={(e) => e.stopPropagation()}
-              style={{
-                position: "absolute",
-                top: "calc(100% + 6px)",
-                left: 0,
-                zIndex: 9999,
-                background: "white",
-                border: "1px solid rgba(0,0,0,0.12)",
-                borderRadius: 10,
-                boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
-                padding: 8,
-                minWidth: 180,
-                display: "grid",
-                gap: 6,
-              }}
-            >
-              <button className="smallBtn" onClick={() => onExportPick("json")} title="Export JSON data file">
-                JSON (data file)
-              </button>
-              <button className="smallBtn" onClick={() => onExportPick("png")} title="Export a high-res PNG of the chart">
-                PNG (image)
-              </button>
-              <button className="smallBtn" onClick={() => onExportPick("csv")} title="Export a CSV of axes + nodes">
-                CSV (table)
-              </button>
-            </div>
-          )}
-        </div>
-
-
-        {/* hidden file input */}
-        <input
-          ref={importFileInputRef}
-          type="file"
-          accept=".json,.babyisland.json,application/json"
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (!f) return;
-            importStrategyFromFile(f);
-          }}
-        />
-
-        <button
-          className="smallBtn"
-          onClick={() => importFileInputRef.current?.click()}
-          title="Import a previously exported Nebula data file (JSON)"
-        >
-          Import
         </button>
 
         <button
