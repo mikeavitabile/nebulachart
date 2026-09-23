@@ -270,9 +270,9 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
     nodeLabelStroke: null,
     ringColors: { now: "#9accec", next: "#559ed0", later: "#286690" },
     blobs: [
-      { fill: "rgba(202,228,245,0.72)", stroke: "rgba(85,158,208,0.78)", strokeWidth: 1.1 },
-      { fill: "rgba(85,158,208,0.38)", stroke: "rgba(40,102,144,0.66)", strokeWidth: 1.1 },
-      { fill: "rgba(40,102,144,0.18)", stroke: "rgba(31,82,119,0.58)", strokeWidth: 1.1 },
+      { fill: "rgba(202,228,245,0.72)", stroke: "none", strokeWidth: 0 },
+      { fill: "rgba(85,158,208,0.38)", stroke: "none", strokeWidth: 0 },
+      { fill: "rgba(40,102,144,0.18)", stroke: "none", strokeWidth: 0 },
     ],
   },
   boardroom: {
