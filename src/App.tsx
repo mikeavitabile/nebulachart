@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { cloud, cloudErrorMessage, CloudAccessError, CloudConflictError, listCloudSnapshots, putCloudSnapshot, removeCloudSnapshot, listNebulaShares, shareNebula, sendShareInvitation, unshareNebula, type NebulaShare, type CloudAccess } from "./cloud";
 
 import babyImg from "./assets/star-2.png";
-import babyIslandImg from "./assets/baby.png";
+import babyIslandImg from "./assets/baby-no-border.png";
 import "./App.css";
 
 function GravitationalCore({
@@ -5349,7 +5349,9 @@ onPointerCancel={(e) => {
                       })}
 {/* Theme-specific center control (on top of axis lines) */}
 {(() => {
-  const iconR = Math.max(10, ringLater * 0.027);
+  const iconR = theme.id === "nebula"
+    ? Math.max(10, ringLater * 0.027)
+    : Math.max(14, ringLater * 0.038);
   const iconScale = iconR / 32;
 
   return (
@@ -5401,10 +5403,10 @@ onPointerCancel={(e) => {
         {theme.id === "island" && (
           <image
             href={babyIslandImg}
-            x="-32"
-            y="-32"
-            width="64"
-            height="64"
+            x="-46"
+            y="-47"
+            width="92"
+            height="95"
             preserveAspectRatio="xMidYMid meet"
           />
         )}
