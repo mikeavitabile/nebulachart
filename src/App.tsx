@@ -270,9 +270,9 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
     nodeLabelStroke: null,
     ringColors: { now: "#9accec", next: "#559ed0", later: "#286690" },
     blobs: [
-      { fill: "rgba(154,204,236,0.28)", stroke: "none", strokeWidth: 0 },
-      { fill: "rgba(85,158,208,0.22)", stroke: "none", strokeWidth: 0 },
-      { fill: "rgba(40,102,144,0.18)", stroke: "none", strokeWidth: 0 },
+      { fill: "rgba(202,228,245,0.72)", stroke: "rgba(85,158,208,0.78)", strokeWidth: 1.1 },
+      { fill: "rgba(85,158,208,0.38)", stroke: "rgba(40,102,144,0.66)", strokeWidth: 1.1 },
+      { fill: "rgba(40,102,144,0.18)", stroke: "rgba(31,82,119,0.58)", strokeWidth: 1.1 },
     ],
   },
 };
@@ -3051,9 +3051,9 @@ const deleteAxis = (axisId: string) => {
         "--theme-panel-solid": themeId === "nebula" ? "#0c0c16" : themeId === "halloween" ? "#090705" : "#ffffff",
         "--theme-text": themeId === "nebula" ? "rgba(245,247,255,0.92)" : themeId === "halloween" ? "#fff5e8" : "#243746",
         "--theme-muted": themeId === "nebula" ? "rgba(245,247,255,0.58)" : themeId === "halloween" ? "rgba(255,220,184,0.62)" : "#62747d",
-        "--theme-border": themeId === "nebula" ? "rgba(255,255,255,0.14)" : themeId === "halloween" ? "rgba(255,138,0,0.25)" : "rgba(36,55,70,0.20)",
-        "--theme-button-bg": themeId === "nebula" ? "rgba(255,255,255,0.06)" : themeId === "halloween" ? "rgba(255,122,0,0.10)" : "rgba(36,55,70,0.07)",
-        "--theme-button-active": themeId === "nebula" ? "rgba(255,255,255,0.10)" : themeId === "halloween" ? "rgba(255,122,0,0.18)" : "rgba(36,55,70,0.11)",
+        "--theme-border": themeId === "nebula" || themeId === "halloween" ? "rgba(255,255,255,0.14)" : "rgba(36,55,70,0.20)",
+        "--theme-button-bg": themeId === "nebula" || themeId === "halloween" ? "rgba(255,255,255,0.06)" : "rgba(36,55,70,0.07)",
+        "--theme-button-active": themeId === "nebula" || themeId === "halloween" ? "rgba(255,255,255,0.10)" : "rgba(36,55,70,0.11)",
         "--theme-input": themeId === "nebula" ? "rgba(12,12,22,0.55)" : themeId === "halloween" ? "rgba(14,10,7,0.92)" : "rgba(255,255,255,0.94)",
         "--theme-accent": theme.ringColors.next,
       } as CSSProperties}
