@@ -127,6 +127,10 @@ type NebulaTheme = {
   selectionFill: string;
   selectionStroke: string;
   selectionShadow: string;
+  nodeColor: string | null;
+  nodeRadius: number;
+  nodeLabelColor: string;
+  nodeLabelStroke: string | null;
   ringColors: Record<"now" | "next" | "later", string>;
   blobs: Array<{ fill: string; stroke: string; strokeWidth: number }>;
 };
@@ -150,6 +154,10 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
     selectionFill: "rgba(255,255,255,0.14)",
     selectionStroke: "#ff4fa0",
     selectionShadow: "drop-shadow(0 0 10px rgba(255,79,160,0.28)) drop-shadow(0 0 14px rgba(157,88,255,0.20))",
+    nodeColor: null,
+    nodeRadius: 6,
+    nodeLabelColor: "rgba(245,247,255,0.86)",
+    nodeLabelStroke: null,
     ringColors: { now: "#FF954D", next: "#FF4FA0", later: "#9D58FF" },
     blobs: [
       { fill: "rgba(255,149,77,0.28)", stroke: "rgba(255,149,77,0.5)", strokeWidth: 1.15 },
@@ -173,16 +181,20 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
     selectionFill: "#ffffff",
     selectionStroke: "#086f5a",
     selectionShadow: "drop-shadow(0 0 7px rgba(8,111,90,0.28))",
-    ringColors: { now: "#5BE0B5", next: "#21CFA0", later: "#0E9F78" },
+    nodeColor: "#08d6a4",
+    nodeRadius: 8,
+    nodeLabelColor: "#243746",
+    nodeLabelStroke: null,
+    ringColors: { now: "#62e3bb", next: "#19c99b", later: "#12996f" },
     blobs: [
-      { fill: "rgba(91,224,181,0.72)", stroke: "rgba(8,111,90,0.58)", strokeWidth: 1.15 },
-      { fill: "rgba(33,207,160,0.60)", stroke: "rgba(8,111,90,0.56)", strokeWidth: 1.15 },
-      { fill: "rgba(14,159,120,0.52)", stroke: "rgba(8,111,90,0.54)", strokeWidth: 1.25 },
+      { fill: "#62e3bb", stroke: "#159677", strokeWidth: 1.15 },
+      { fill: "#19c99b", stroke: "#0d8064", strokeWidth: 1.15 },
+      { fill: "#12996f", stroke: "#087052", strokeWidth: 1.25 },
     ],
   },
   pizza: {
     id: "pizza",
-    label: "Pizza Sauce",
+    label: "Pizza",
     icon: "🍕",
     cosmic: false,
     chartBackground: "#f1c98e",
@@ -196,11 +208,15 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
     selectionFill: "#fff9ee",
     selectionStroke: "#7d1816",
     selectionShadow: "drop-shadow(0 0 7px rgba(125,24,22,0.32))",
-    ringColors: { now: "#F06A4E", next: "#D64535", later: "#A82524" },
+    nodeColor: "#ffd24a",
+    nodeRadius: 8,
+    nodeLabelColor: "#ffffff",
+    nodeLabelStroke: "rgba(72,18,14,0.72)",
+    ringColors: { now: "#f36b4f", next: "#d83e31", later: "#9f2022" },
     blobs: [
-      { fill: "rgba(240,106,78,0.72)", stroke: "rgba(125,24,22,0.56)", strokeWidth: 1.15 },
-      { fill: "rgba(214,69,53,0.62)", stroke: "rgba(125,24,22,0.56)", strokeWidth: 1.15 },
-      { fill: "rgba(168,37,36,0.54)", stroke: "rgba(100,22,20,0.58)", strokeWidth: 1.25 },
+      { fill: "#f36b4f", stroke: "#b92e25", strokeWidth: 1.15 },
+      { fill: "#d83e31", stroke: "#99251f", strokeWidth: 1.15 },
+      { fill: "#9f2022", stroke: "#741719", strokeWidth: 1.25 },
     ],
   },
 };
@@ -1112,9 +1128,9 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
     fontWeight: 700,
     cursor: "pointer",
     lineHeight: 1,
-    boxShadow: on
+    boxShadow: theme.id === "nebula" && on
       ? `0 10px 26px ${color}33, 0 0 0 1px rgba(255,255,255,0.06) inset`
-      : "0 0 0 1px rgba(255,255,255,0.04) inset",
+      : theme.id === "nebula" ? "0 0 0 1px rgba(255,255,255,0.04) inset" : "none",
     backdropFilter: "blur(6px)",
   });
 
@@ -1128,7 +1144,7 @@ const lastPointerDownRef = useRef<{ id: string; t: number } | null>(null);
     fontWeight: 850,
     cursor: "pointer",
     lineHeight: 1,
-    boxShadow: on ? "0 10px 26px rgba(0,0,0,0.35)" : "none",
+    boxShadow: theme.id === "nebula" && on ? "0 10px 26px rgba(0,0,0,0.35)" : "none",
     backdropFilter: "blur(6px)",
   });
 
@@ -2962,15 +2978,15 @@ const deleteAxis = (axisId: string) => {
       className={`appShell theme-${themeId} ${leftCollapsed ? "noTopHeader" : ""}`}
       data-theme={themeId}
       style={{
-        "--theme-bg": themeId === "nebula" ? "#05050a" : themeId === "island" ? "#f7fbfc" : "#fff9ee",
-        "--theme-panel": themeId === "nebula" ? "rgba(10,10,18,0.55)" : themeId === "island" ? "rgba(255,255,255,0.88)" : "rgba(255,249,238,0.90)",
-        "--theme-panel-solid": themeId === "nebula" ? "#0c0c16" : themeId === "island" ? "#ffffff" : "#fff9ee",
-        "--theme-text": themeId === "nebula" ? "rgba(245,247,255,0.92)" : themeId === "island" ? "#243746" : "#4a2418",
-        "--theme-muted": themeId === "nebula" ? "rgba(245,247,255,0.58)" : themeId === "island" ? "#62747d" : "#805f4e",
-        "--theme-border": themeId === "nebula" ? "rgba(255,255,255,0.14)" : themeId === "island" ? "rgba(36,55,70,0.20)" : "rgba(100,48,25,0.22)",
-        "--theme-button-bg": themeId === "nebula" ? "rgba(255,255,255,0.06)" : themeId === "island" ? "rgba(36,55,70,0.07)" : "rgba(120,63,29,0.08)",
-        "--theme-button-active": themeId === "nebula" ? "rgba(255,255,255,0.10)" : themeId === "island" ? "rgba(14,159,120,0.16)" : "rgba(214,69,53,0.15)",
-        "--theme-input": themeId === "nebula" ? "rgba(12,12,22,0.55)" : themeId === "island" ? "rgba(255,255,255,0.94)" : "rgba(255,253,248,0.94)",
+        "--theme-bg": themeId === "nebula" ? "#05050a" : "#f7fbfc",
+        "--theme-panel": themeId === "nebula" ? "rgba(10,10,18,0.55)" : "rgba(255,255,255,0.88)",
+        "--theme-panel-solid": themeId === "nebula" ? "#0c0c16" : "#ffffff",
+        "--theme-text": themeId === "nebula" ? "rgba(245,247,255,0.92)" : "#243746",
+        "--theme-muted": themeId === "nebula" ? "rgba(245,247,255,0.58)" : "#62747d",
+        "--theme-border": themeId === "nebula" ? "rgba(255,255,255,0.14)" : "rgba(36,55,70,0.20)",
+        "--theme-button-bg": themeId === "nebula" ? "rgba(255,255,255,0.06)" : "rgba(36,55,70,0.07)",
+        "--theme-button-active": themeId === "nebula" ? "rgba(255,255,255,0.10)" : "rgba(36,55,70,0.11)",
+        "--theme-input": themeId === "nebula" ? "rgba(12,12,22,0.55)" : "rgba(255,255,255,0.94)",
         "--theme-accent": theme.ringColors.next,
       } as CSSProperties}
     >
@@ -5162,6 +5178,27 @@ onPointerCancel={(e) => {
     <stop offset="100%" stopColor="rgba(157,88,255,0.60)" />
   </linearGradient>
 
+  {/* Light-theme field treatments */}
+  <radialGradient id="islandWaterGrad" cx="42%" cy="35%" r="78%">
+    <stop offset="0%" stopColor="#e8f9ff" />
+    <stop offset="62%" stopColor="#d8f3fd" />
+    <stop offset="100%" stopColor="#c8eaf6" />
+  </radialGradient>
+
+  <radialGradient id="pizzaCrustGrad" cx="42%" cy="35%" r="82%">
+    <stop offset="0%" stopColor="#f8dda9" />
+    <stop offset="68%" stopColor="#edc27f" />
+    <stop offset="100%" stopColor="#dca45d" />
+  </radialGradient>
+
+  <pattern id="crustSpeckles" width="54" height="54" patternUnits="userSpaceOnUse">
+    <circle cx="8" cy="13" r="1.4" fill="#9b642f" opacity="0.16" />
+    <circle cx="39" cy="9" r="0.9" fill="#8a5527" opacity="0.13" />
+    <circle cx="23" cy="34" r="1.1" fill="#a66b31" opacity="0.14" />
+    <circle cx="48" cy="43" r="1.7" fill="#8c5425" opacity="0.10" />
+    <circle cx="5" cy="48" r="0.8" fill="#7f491f" opacity="0.12" />
+  </pattern>
+
   {/* Clip so space only appears inside nebula field boundary */}
   <clipPath id="oceanClip">
     <circle cx={cx2} cy={cy2} r={ringLater} />
@@ -5173,7 +5210,16 @@ onPointerCancel={(e) => {
   <g>
  {/* Space background (inside boundary) */}
 <g clipPath="url(#oceanClip)">
-  <rect x="0" y="0" width={w} height={h} fill={theme.chartBackground} />
+  <rect
+    x="0"
+    y="0"
+    width={w}
+    height={h}
+    fill={theme.id === "island" ? "url(#islandWaterGrad)" : theme.id === "pizza" ? "url(#pizzaCrustGrad)" : theme.chartBackground}
+  />
+  {theme.id === "pizza" && (
+    <rect x="0" y="0" width={w} height={h} fill="url(#crustSpeckles)" />
+  )}
   {theme.cosmic && (
     <>
       <rect x="0" y="0" width={w} height={h} fill="url(#spaceVignette)" />
@@ -5578,12 +5624,14 @@ if (nextSelected) expandAxis(n.axisId);
 <circle
   cx={x}
   cy={y}
-  r={isSelected ? 9 : 6}
+  r={isSelected ? theme.nodeRadius + 3 : theme.nodeRadius}
   opacity={isComplete ? 0.55 : 1}
 
   fill={
     isSelected
       ? theme.selectionFill
+      : theme.nodeColor
+        ? theme.nodeColor
       : (n.ringId === "uncommitted"
           ? theme.uncommittedNode
           : ((RING_COLORS[n.ringId] ? `${RING_COLORS[n.ringId]}CC` : theme.uncommittedNode)))
@@ -5625,7 +5673,10 @@ if (nextSelected) expandAxis(n.axisId);
         x={textX}
         y={startY}
         fontSize={NODE_LABEL_FONT_SIZE}
-        fill={isSelected ? theme.chartText : theme.chartTextMuted}
+        fill={isSelected && theme.id === "nebula" ? theme.chartText : theme.nodeLabelColor}
+        stroke={theme.nodeLabelStroke ?? "none"}
+        strokeWidth={theme.nodeLabelStroke ? 2.4 : 0}
+        paintOrder="stroke"
 
         style={{ fontWeight: isSelected ? 600 : 300, cursor: "text", userSelect: "none" }}
         onDoubleClick={(e) => {
