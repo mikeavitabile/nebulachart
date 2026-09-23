@@ -110,7 +110,7 @@ type NodeItem = {
   complete?: boolean;        // ✅ new: node is done
 };
 
-type ThemeId = "nebula" | "island" | "pizza";
+type ThemeId = "nebula" | "island" | "pizza" | "halloween";
 
 type NebulaTheme = {
   id: ThemeId;
@@ -188,9 +188,9 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
     nodeLabelStroke: null,
     ringColors: { now: "#62e3bb", next: "#19c99b", later: "#12996f" },
     blobs: [
-      { fill: "#62e3bb", stroke: "#159677", strokeWidth: 1.15 },
-      { fill: "#19c99b", stroke: "#0d8064", strokeWidth: 1.15 },
-      { fill: "#12996f", stroke: "#087052", strokeWidth: 1.25 },
+      { fill: "#62e3bb", stroke: "none", strokeWidth: 0 },
+      { fill: "#19c99b", stroke: "none", strokeWidth: 0 },
+      { fill: "#12996f", stroke: "none", strokeWidth: 0 },
     ],
   },
   pizza: {
@@ -218,6 +218,33 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
       { fill: "#f36b4f", stroke: "#b92e25", strokeWidth: 1.15 },
       { fill: "#d83e31", stroke: "#99251f", strokeWidth: 1.15 },
       { fill: "#9f2022", stroke: "#741719", strokeWidth: 1.25 },
+    ],
+  },
+  halloween: {
+    id: "halloween",
+    label: "Halloween",
+    icon: "🎃",
+    cosmic: false,
+    chartBackground: "#000000",
+    exportBackground: "#000000",
+    axisColor: "rgba(255,255,255,0.24)",
+    chartText: "#fff5e8",
+    chartTextMuted: "#fff5e8",
+    boundaryColor: "rgba(255,138,0,0.42)",
+    nodeOutline: "rgba(56,22,0,0.86)",
+    uncommittedNode: "#fff1dc",
+    selectionFill: "#fff5e8",
+    selectionStroke: "#ff7a00",
+    selectionShadow: "drop-shadow(0 0 8px rgba(255,122,0,0.48))",
+    nodeColor: "#ffb000",
+    nodeRadius: 8,
+    nodeLabelColor: "#fff5e8",
+    nodeLabelStroke: "rgba(0,0,0,0.82)",
+    ringColors: { now: "#ffad42", next: "#f57600", later: "#b93800" },
+    blobs: [
+      { fill: "#ffad42", stroke: "none", strokeWidth: 0 },
+      { fill: "#f57600", stroke: "none", strokeWidth: 0 },
+      { fill: "#b93800", stroke: "none", strokeWidth: 0 },
     ],
   },
 };
@@ -1003,7 +1030,7 @@ const BLANK_NODES: NodeItem[] = [];
   const [themeId, setThemeId] = useState<ThemeId>(() => {
     try {
       const saved = localStorage.getItem(THEME_STORAGE_KEY);
-      return saved === "island" || saved === "pizza" || saved === "nebula" ? saved : "nebula";
+      return saved === "island" || saved === "pizza" || saved === "halloween" || saved === "nebula" ? saved : "nebula";
     } catch {
       return "nebula";
     }
@@ -2986,15 +3013,15 @@ const deleteAxis = (axisId: string) => {
       className={`appShell theme-${themeId} ${leftCollapsed ? "noTopHeader" : ""}`}
       data-theme={themeId}
       style={{
-        "--theme-bg": themeId === "nebula" ? "#05050a" : "#f7fbfc",
-        "--theme-panel": themeId === "nebula" ? "rgba(10,10,18,0.55)" : "rgba(255,255,255,0.88)",
-        "--theme-panel-solid": themeId === "nebula" ? "#0c0c16" : "#ffffff",
-        "--theme-text": themeId === "nebula" ? "rgba(245,247,255,0.92)" : "#243746",
-        "--theme-muted": themeId === "nebula" ? "rgba(245,247,255,0.58)" : "#62747d",
-        "--theme-border": themeId === "nebula" ? "rgba(255,255,255,0.14)" : "rgba(36,55,70,0.20)",
-        "--theme-button-bg": themeId === "nebula" ? "rgba(255,255,255,0.06)" : "rgba(36,55,70,0.07)",
-        "--theme-button-active": themeId === "nebula" ? "rgba(255,255,255,0.10)" : "rgba(36,55,70,0.11)",
-        "--theme-input": themeId === "nebula" ? "rgba(12,12,22,0.55)" : "rgba(255,255,255,0.94)",
+        "--theme-bg": themeId === "nebula" ? "#05050a" : themeId === "halloween" ? "#000000" : "#f7fbfc",
+        "--theme-panel": themeId === "nebula" ? "rgba(10,10,18,0.55)" : themeId === "halloween" ? "rgba(9,7,5,0.82)" : "rgba(255,255,255,0.88)",
+        "--theme-panel-solid": themeId === "nebula" ? "#0c0c16" : themeId === "halloween" ? "#090705" : "#ffffff",
+        "--theme-text": themeId === "nebula" ? "rgba(245,247,255,0.92)" : themeId === "halloween" ? "#fff5e8" : "#243746",
+        "--theme-muted": themeId === "nebula" ? "rgba(245,247,255,0.58)" : themeId === "halloween" ? "rgba(255,220,184,0.62)" : "#62747d",
+        "--theme-border": themeId === "nebula" ? "rgba(255,255,255,0.14)" : themeId === "halloween" ? "rgba(255,138,0,0.25)" : "rgba(36,55,70,0.20)",
+        "--theme-button-bg": themeId === "nebula" ? "rgba(255,255,255,0.06)" : themeId === "halloween" ? "rgba(255,122,0,0.10)" : "rgba(36,55,70,0.07)",
+        "--theme-button-active": themeId === "nebula" ? "rgba(255,255,255,0.10)" : themeId === "halloween" ? "rgba(255,122,0,0.18)" : "rgba(36,55,70,0.11)",
+        "--theme-input": themeId === "nebula" ? "rgba(12,12,22,0.55)" : themeId === "halloween" ? "rgba(14,10,7,0.92)" : "rgba(255,255,255,0.94)",
         "--theme-accent": theme.ringColors.next,
       } as CSSProperties}
     >
@@ -5207,6 +5234,19 @@ onPointerCancel={(e) => {
     <circle cx="5" cy="48" r="0.8" fill="#7f491f" opacity="0.12" />
   </pattern>
 
+  <pattern id="halloweenWebs" width="260" height="260" patternUnits="userSpaceOnUse">
+    <g fill="none" stroke="#ffffff" strokeWidth="1.2" opacity="0.16">
+      <path d="M 0 0 L 118 0 M 0 0 L 82 82 M 0 0 L 0 118" />
+      <path d="M 34 0 A 34 34 0 0 1 0 34" />
+      <path d="M 66 0 A 66 66 0 0 1 0 66" />
+      <path d="M 101 0 A 101 101 0 0 1 0 101" />
+      <path d="M 260 260 L 142 260 M 260 260 L 178 178 M 260 260 L 260 142" />
+      <path d="M 226 260 A 34 34 0 0 0 260 226" />
+      <path d="M 194 260 A 66 66 0 0 0 260 194" />
+      <path d="M 159 260 A 101 101 0 0 0 260 159" />
+    </g>
+  </pattern>
+
   {/* Clip so space only appears inside nebula field boundary */}
   <clipPath id="oceanClip">
     <circle cx={cx2} cy={cy2} r={ringLater} />
@@ -5227,6 +5267,9 @@ onPointerCancel={(e) => {
   />
   {theme.id === "pizza" && (
     <rect x="0" y="0" width={w} height={h} fill="url(#crustSpeckles)" />
+  )}
+  {theme.id === "halloween" && (
+    <rect x="0" y="0" width={w} height={h} fill="url(#halloweenWebs)" />
   )}
   {theme.cosmic && (
     <>
