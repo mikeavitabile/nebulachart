@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { cloud, cloudErrorMessage, CloudAccessError, CloudConflictError, listCloudSnapshots, putCloudSnapshot, removeCloudSnapshot, listNebulaShares, shareNebula, sendShareInvitation, unshareNebula, type NebulaShare, type CloudAccess } from "./cloud";
 
 import babyImg from "./assets/star-2.png";
+import babyIslandImg from "./assets/baby.png";
 import "./App.css";
 
 function GravitationalCore({
@@ -1570,6 +1571,13 @@ wrapWidth: null,
         svgText = svgText.split(babyUrl).join(babyDataUrl);
       } else {
         console.warn("PNG export: could not inline baby image (continuing).");
+      }
+
+      // Inline the Island center image so it is retained in PNG exports.
+      const babyIslandUrl = String(babyIslandImg);
+      const babyIslandDataUrl = await toDataUrl(babyIslandUrl);
+      if (babyIslandDataUrl) {
+        svgText = svgText.split(babyIslandUrl).join(babyIslandDataUrl);
       }
 
       const scale = 3; // bump to 4 if you want more resolution
@@ -5341,7 +5349,7 @@ onPointerCancel={(e) => {
                       })}
 {/* Theme-specific center control (on top of axis lines) */}
 {(() => {
-  const iconR = Math.max(26, ringLater * 0.105);
+  const iconR = Math.max(10, ringLater * 0.027);
   const iconScale = iconR / 32;
 
   return (
@@ -5391,17 +5399,14 @@ onPointerCancel={(e) => {
         )}
 
         {theme.id === "island" && (
-          <>
-            <circle r="30" fill="#f6fffb" stroke="#16866b" strokeWidth="1.8" />
-            <path d="M -23 22 Q 0 12 23 22" fill="none" stroke="#58cda8" strokeWidth="5" strokeLinecap="round" />
-            <path d="M 3 21 Q 7 5 0 -8" fill="none" stroke="#9a663a" strokeWidth="5.5" strokeLinecap="round" />
-            <path d="M 0 -8 Q -13 -22 -27 -13" fill="none" stroke="#15996f" strokeWidth="5" strokeLinecap="round" />
-            <path d="M 0 -8 Q -4 -27 5 -29" fill="none" stroke="#19b982" strokeWidth="5" strokeLinecap="round" />
-            <path d="M 0 -8 Q 14 -24 27 -15" fill="none" stroke="#138a65" strokeWidth="5" strokeLinecap="round" />
-            <path d="M 0 -8 Q 18 -10 26 0" fill="none" stroke="#20aa79" strokeWidth="5" strokeLinecap="round" />
-            <path d="M 0 -8 Q -18 -9 -25 1" fill="none" stroke="#22b884" strokeWidth="5" strokeLinecap="round" />
-            <circle cy="-8" r="4" fill="#0f7658" />
-          </>
+          <image
+            href={babyIslandImg}
+            x="-32"
+            y="-32"
+            width="64"
+            height="64"
+            preserveAspectRatio="xMidYMid meet"
+          />
         )}
 
         {theme.id === "pizza" && (
