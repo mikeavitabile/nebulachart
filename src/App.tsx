@@ -242,9 +242,9 @@ const THEMES: Record<ThemeId, NebulaTheme> = {
     nodeLabelStroke: "rgba(0,0,0,0.82)",
     ringColors: { now: "#ffad42", next: "#f57600", later: "#b93800" },
     blobs: [
-      { fill: "#ffad42", stroke: "none", strokeWidth: 0 },
-      { fill: "#f57600", stroke: "none", strokeWidth: 0 },
-      { fill: "#b93800", stroke: "none", strokeWidth: 0 },
+      { fill: "rgba(255,173,66,0.28)", stroke: "none", strokeWidth: 0 },
+      { fill: "rgba(245,118,0,0.22)", stroke: "none", strokeWidth: 0 },
+      { fill: "rgba(185,56,0,0.18)", stroke: "none", strokeWidth: 0 },
     ],
   },
 };
@@ -5234,18 +5234,6 @@ onPointerCancel={(e) => {
     <circle cx="5" cy="48" r="0.8" fill="#7f491f" opacity="0.12" />
   </pattern>
 
-  <pattern id="halloweenWebs" width="260" height="260" patternUnits="userSpaceOnUse">
-    <g fill="none" stroke="#ffffff" strokeWidth="1.2" opacity="0.16">
-      <path d="M 0 0 L 118 0 M 0 0 L 82 82 M 0 0 L 0 118" />
-      <path d="M 34 0 A 34 34 0 0 1 0 34" />
-      <path d="M 66 0 A 66 66 0 0 1 0 66" />
-      <path d="M 101 0 A 101 101 0 0 1 0 101" />
-      <path d="M 260 260 L 142 260 M 260 260 L 178 178 M 260 260 L 260 142" />
-      <path d="M 226 260 A 34 34 0 0 0 260 226" />
-      <path d="M 194 260 A 66 66 0 0 0 260 194" />
-      <path d="M 159 260 A 101 101 0 0 0 260 159" />
-    </g>
-  </pattern>
 
   {/* Clip so space only appears inside nebula field boundary */}
   <clipPath id="oceanClip">
@@ -5269,7 +5257,20 @@ onPointerCancel={(e) => {
     <rect x="0" y="0" width={w} height={h} fill="url(#crustSpeckles)" />
   )}
   {theme.id === "halloween" && (
-    <rect x="0" y="0" width={w} height={h} fill="url(#halloweenWebs)" />
+    <g fill="none" stroke="#ffffff" strokeWidth="1.15" opacity="0.16">
+      <g transform={`translate(${cx2 - ringLater * 0.70} ${cy2 - ringLater * 0.70})`}>
+        <path d="M 0 0 L 92 0 M 0 0 L 65 65 M 0 0 L 0 92" />
+        <path d="M 28 0 A 28 28 0 0 1 0 28" />
+        <path d="M 55 0 A 55 55 0 0 1 0 55" />
+        <path d="M 82 0 A 82 82 0 0 1 0 82" />
+      </g>
+      <g transform={`translate(${cx2 + ringLater * 0.70} ${cy2 + ringLater * 0.70}) rotate(180)`}>
+        <path d="M 0 0 L 92 0 M 0 0 L 65 65 M 0 0 L 0 92" />
+        <path d="M 28 0 A 28 28 0 0 1 0 28" />
+        <path d="M 55 0 A 55 55 0 0 1 0 55" />
+        <path d="M 82 0 A 82 82 0 0 1 0 82" />
+      </g>
+    </g>
   )}
   {theme.cosmic && (
     <>
@@ -5463,6 +5464,18 @@ onPointerCancel={(e) => {
             <circle cx="9" cy="3" r="2.4" fill="#57241c" />
             <path d="M -12 12 Q -6 7 0 13 Q 6 7 12 12 Q 6 18 0 14 Q -6 18 -12 12 Z" fill="#fffdf6" stroke="#7d2d20" strokeWidth="1.5" strokeLinejoin="round" />
             <path d="M -7 21 Q 0 25 7 21" fill="none" stroke="#9f3c2c" strokeWidth="1.8" strokeLinecap="round" />
+          </>
+        )}
+
+        {theme.id === "halloween" && (
+          <>
+            <path d="M -4 -24 Q 0 -33 8 -26 L 5 -17" fill="#4f8d2f" stroke="#213d16" strokeWidth="2" strokeLinejoin="round" />
+            <ellipse cx="-12" cy="2" rx="18" ry="25" fill="#d94e00" stroke="#612000" strokeWidth="2" />
+            <ellipse cx="12" cy="2" rx="18" ry="25" fill="#d94e00" stroke="#612000" strokeWidth="2" />
+            <ellipse cy="2" rx="17" ry="27" fill="#ff7a00" stroke="#7a2800" strokeWidth="2" />
+            <path d="M -11 -3 L -3 2 L -13 5 Z" fill="#2a1000" />
+            <path d="M 11 -3 L 3 2 L 13 5 Z" fill="#2a1000" />
+            <path d="M -14 12 Q 0 23 14 12 Q 7 15 4 11 Q 0 17 -4 11 Q -7 15 -14 12 Z" fill="#2a1000" />
           </>
         )}
       </g>
