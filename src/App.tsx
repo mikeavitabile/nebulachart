@@ -4457,6 +4457,22 @@ const deleteAxis = (axisId: string) => {
             Build mode
           </button>
 
+          <label
+            className="themePicker presentationThemePicker"
+            title="Choose your personal visual theme"
+          >
+            <span aria-hidden="true">{theme.icon}</span>
+            <select
+              aria-label="Visual theme"
+              value={themeId}
+              onChange={(event) => chooseTheme(event.target.value as ThemeId)}
+            >
+              {(Object.keys(THEMES) as ThemeId[]).map((id) => (
+                <option key={id} value={id}>{THEMES[id].label}</option>
+              ))}
+            </select>
+          </label>
+
           
         </div>
 
@@ -5256,22 +5272,6 @@ onPointerCancel={(e) => {
   {theme.id === "pizza" && (
     <rect x="0" y="0" width={w} height={h} fill="url(#crustSpeckles)" />
   )}
-  {theme.id === "halloween" && (
-    <g fill="none" stroke="#ffffff" strokeWidth="1.15" opacity="0.16">
-      <g transform={`translate(${cx2 - ringLater * 0.70} ${cy2 - ringLater * 0.70})`}>
-        <path d="M 0 0 L 92 0 M 0 0 L 65 65 M 0 0 L 0 92" />
-        <path d="M 28 0 A 28 28 0 0 1 0 28" />
-        <path d="M 55 0 A 55 55 0 0 1 0 55" />
-        <path d="M 82 0 A 82 82 0 0 1 0 82" />
-      </g>
-      <g transform={`translate(${cx2 + ringLater * 0.70} ${cy2 + ringLater * 0.70}) rotate(180)`}>
-        <path d="M 0 0 L 92 0 M 0 0 L 65 65 M 0 0 L 0 92" />
-        <path d="M 28 0 A 28 28 0 0 1 0 28" />
-        <path d="M 55 0 A 55 55 0 0 1 0 55" />
-        <path d="M 82 0 A 82 82 0 0 1 0 82" />
-      </g>
-    </g>
-  )}
   {theme.cosmic && (
     <>
       <rect x="0" y="0" width={w} height={h} fill="url(#spaceVignette)" />
@@ -5456,27 +5456,27 @@ onPointerCancel={(e) => {
         )}
 
         {theme.id === "pizza" && (
-          <>
-            <circle cy="5" r="25" fill="#ffd3ad" stroke="#7d2d20" strokeWidth="2" />
-            <path d="M -21 -10 L -21 -17 Q -30 -20 -27 -29 Q -23 -37 -14 -32 Q -10 -43 0 -38 Q 10 -43 14 -32 Q 23 -37 27 -29 Q 30 -20 21 -17 L 21 -10 Z" fill="#fffdf6" stroke="#7d2d20" strokeWidth="2" strokeLinejoin="round" />
-            <path d="M -21 -10 Q 0 -5 21 -10" fill="none" stroke="#d9c7b2" strokeWidth="2" />
-            <circle cx="-9" cy="3" r="2.4" fill="#57241c" />
-            <circle cx="9" cy="3" r="2.4" fill="#57241c" />
-            <path d="M -12 12 Q -6 7 0 13 Q 6 7 12 12 Q 6 18 0 14 Q -6 18 -12 12 Z" fill="#fffdf6" stroke="#7d2d20" strokeWidth="1.5" strokeLinejoin="round" />
-            <path d="M -7 21 Q 0 25 7 21" fill="none" stroke="#9f3c2c" strokeWidth="1.8" strokeLinecap="round" />
-          </>
+          <text
+            x="0"
+            y="2"
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize="56"
+          >
+            🍕
+          </text>
         )}
 
         {theme.id === "halloween" && (
-          <>
-            <path d="M -4 -24 Q 0 -33 8 -26 L 5 -17" fill="#4f8d2f" stroke="#213d16" strokeWidth="2" strokeLinejoin="round" />
-            <ellipse cx="-12" cy="2" rx="18" ry="25" fill="#d94e00" stroke="#612000" strokeWidth="2" />
-            <ellipse cx="12" cy="2" rx="18" ry="25" fill="#d94e00" stroke="#612000" strokeWidth="2" />
-            <ellipse cy="2" rx="17" ry="27" fill="#ff7a00" stroke="#7a2800" strokeWidth="2" />
-            <path d="M -11 -3 L -3 2 L -13 5 Z" fill="#2a1000" />
-            <path d="M 11 -3 L 3 2 L 13 5 Z" fill="#2a1000" />
-            <path d="M -14 12 Q 0 23 14 12 Q 7 15 4 11 Q 0 17 -4 11 Q -7 15 -14 12 Z" fill="#2a1000" />
-          </>
+          <text
+            x="0"
+            y="2"
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize="56"
+          >
+            🎃
+          </text>
         )}
       </g>
     </g>
